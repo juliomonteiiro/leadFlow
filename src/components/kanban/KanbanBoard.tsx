@@ -22,12 +22,13 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
   const containerRef = useRef<HTMLDivElement | null>(null)
   const dragStateRef = useRef({ active: false, startX: 0, startScrollLeft: 0 })
 
-  function triggerCampaignMessages(leadId: string, stageId: string): void {
-    campaigns.filter((c) => c.trigger_stage_id === stageId && c.is_active).forEach((campaign) => {
+  async function triggerCampaignMessages(leadId: string, stageId: string): Promise<void> {
+    const targets = campaigns.filter((c) => c.trigger_stage_id === stageId && c.is_active)
+    await Promise.allSettled(targets.map((campaign) =>
       supabase.functions.invoke(EDGE_FN_GENERATE_MESSAGES, {
         body: { lead_id: leadId, campaign_id: campaign.id, auto_generated: true },
       })
-    })
+    ))
   }
 
   async function handleDragEnd(event: DragEndEvent): Promise<void> {
@@ -46,7 +47,7 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
     const oldStageId = lead.stage_id
     await updateStage(leadId, newStageId)
     await log({ leadId, activityType: 'stage_changed', metadata: { from: oldStageId, to: newStageId } })
-    triggerCampaignMessages(leadId, newStageId)
+    await triggerCampaignMessages(leadId, newStageId)
   }
 
   function handleMouseDown(event: React.MouseEvent<HTMLDivElement>) {
