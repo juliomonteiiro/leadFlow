@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase }                          from '@/lib/supabase'
-import { useWorkspace }                      from '@/contexts/WorkspaceContext'
+import { useWorkspace }                      from '@/hooks/useWorkspace'
 import type { Lead }                         from '@/lib/types'
 
 type CreateLeadData = Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>

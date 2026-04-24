@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase }        from '@/lib/supabase'
-import { useWorkspace }    from '@/contexts/WorkspaceContext'
+import { useWorkspace }    from '@/hooks/useWorkspace'
 import type { CustomFieldDefinition, LeadCustomValue } from '@/lib/types'
 
 export function useCustomFields() {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase }            from '@/lib/supabase'
-import { useWorkspace }        from '@/contexts/WorkspaceContext'
+import { useWorkspace }        from '@/hooks/useWorkspace'
 import type { FunnelStage }    from '@/lib/types'
 
 export function useStages() {

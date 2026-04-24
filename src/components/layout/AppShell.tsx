@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar }  from '@/components/layout/Sidebar'
 import { Header }   from '@/components/layout/Header'
 import { Toast }    from '@/components/ui/Toast'
-import { useToast } from '@/contexts/ToastContext'
+import { useToast } from '@/hooks/useToast'
 
 export function AppShell() {
   const { toast, hideToast } = useToast()

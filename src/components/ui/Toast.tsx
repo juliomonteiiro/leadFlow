@@ -1,6 +1,6 @@
 import { useEffect }      from 'react'
 import { X }              from 'lucide-react'
-import type { ToastType } from '@/contexts/ToastContext'
+import type { ToastType } from '@/contexts/toast.context'
 
 interface ToastProps {
   message: string

@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { Plus, Trash2 }                  from 'lucide-react'
 import { supabase }                      from '@/lib/supabase'
-import { useWorkspace }                  from '@/contexts/WorkspaceContext'
+import { useWorkspace }                  from '@/hooks/useWorkspace'
 import { useCustomFields }               from '@/hooks/useCustomFields'
 import { useStages }                     from '@/hooks/useStages'
 import { Skeleton }                      from '@/components/ui/Skeleton'

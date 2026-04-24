@@ -1,8 +1,8 @@
 import { NavLink }                                     from 'react-router-dom'
 import { Kanban, BarChart2, Megaphone, Settings, LogOut, PanelLeftClose, PanelLeftOpen, Sun, Moon } from 'lucide-react'
-import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuth }      from '@/hooks/useAuth'
-import { useTheme }     from '@/contexts/ThemeContext'
+import { useTheme }     from '@/hooks/useTheme'
 
 const NAV_ITEMS = [
   { to: '/kanban',    icon: <Kanban size={18} />,    label: 'Kanban' },

@@ -6,7 +6,7 @@ import { LeadModal }          from '@/components/leads/LeadModal'
 import { Skeleton }           from '@/components/ui/Skeleton'
 import { useLeads }           from '@/hooks/useLeads'
 import { useActivityLog }     from '@/hooks/useActivityLog'
-import { useToast }           from '@/contexts/ToastContext'
+import { useToast }           from '@/hooks/useToast'
 import type { Lead }          from '@/lib/types'
 
 export default function KanbanPage() {

@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { useWorkspace }      from '@/contexts/WorkspaceContext'
+import { useWorkspace }      from '@/hooks/useWorkspace'
 import { Skeleton }          from '@/components/ui/Skeleton'
 
 export function ProtectedRoute() {

@@ -1,16 +1,8 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { User }      from '@supabase/supabase-js'
 import { supabase }       from '@/lib/supabase'
 import type { Workspace } from '@/lib/types'
-
-interface WorkspaceContextValue {
-  workspace: Workspace | null
-  user:      User | null
-  loading:   boolean
-  refetch:   () => void
-}
-
-const WorkspaceContext = createContext<WorkspaceContextValue | null>(null)
+import { WorkspaceContext } from '@/contexts/workspace.context'
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
@@ -80,10 +72,4 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       {children}
     </WorkspaceContext.Provider>
   )
-}
-
-export function useWorkspace(): WorkspaceContextValue {
-  const ctx = useContext(WorkspaceContext)
-  if (!ctx) throw new Error('useWorkspace must be used inside WorkspaceProvider')
-  return ctx
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase }                          from '@/lib/supabase'
-import { useWorkspace }                      from '@/contexts/WorkspaceContext'
+import { useWorkspace }                      from '@/hooks/useWorkspace'
 import type { Campaign }                     from '@/lib/types'
 
 type CreateCampaignData = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>

@@ -1,5 +1,5 @@
 import { Zap } from 'lucide-react'
-import { useWorkspace } from '@/contexts/WorkspaceContext'
+import { useWorkspace } from '@/hooks/useWorkspace'
 
 interface HeaderProps {
   sidebarCollapsed: boolean
