@@ -36,7 +36,8 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
     if (!lead || lead.stage_id === newStageId) return
     const missingFields = await checkRequiredFields(lead, newStageId)
     if (missingFields.length > 0) {
-      showToast(`Campos obrigatórios: ${missingFields.map((f) => f.label).join(', ')}`, 'error')
+      const labels = missingFields.map((field) => field.label).join(', ')
+      showToast(`Preencha os campos obrigatórios: ${labels}`, 'error')
       return
     }
     const oldStageId = lead.stage_id
