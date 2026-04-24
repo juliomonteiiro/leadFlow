@@ -17,7 +17,7 @@ export function AppShell() {
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
         />
-        <main className="flex-1 overflow-auto p-6"><Outlet /></main>
+        <main className="flex-1 overflow-auto p-6 flex flex-col min-h-0"><Outlet /></main>
       </div>
       {toast && <Toast key={toast.id} message={toast.message} type={toast.type} onClose={hideToast} />}
     </div>

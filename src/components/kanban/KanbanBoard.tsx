@@ -79,7 +79,7 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
   }
 
   return (
-    <>
+    <div className="h-full min-h-0 flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-semibold text-text-primary">Kanban</h1>
         <button onClick={onCreateClick} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
@@ -89,7 +89,7 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <div
           ref={containerRef}
-          className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
+          className="flex-1 min-h-0 flex items-stretch gap-5 overflow-x-auto p-4 pb-5 cursor-grab bg-surface-card border border-surface-border rounded-card shadow-sm"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={stopDragging}
@@ -102,6 +102,6 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
           ))}
         </div>
       </DndContext>
-    </>
+    </div>
   )
 }
