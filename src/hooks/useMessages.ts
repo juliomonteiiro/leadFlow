@@ -1,46 +1,33 @@
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import type { GeneratedMessage } from '@/lib/types'
+import { useCallback, useState }     from 'react'
+import { supabase }                  from '@/lib/supabase'
+import type { GeneratedMessage }     from '@/lib/types'
+import { EDGE_FN_GENERATE_MESSAGES } from '@/lib/constants'
 
-export function useMessages(leadId: string | null) {
-  const [messages, setMessages] = useState<GeneratedMessage[]>([])
-  const [loading, setLoading] = useState(true)
+export function useMessages() {
+  const [generating, setGenerating] = useState(false)
 
-  const fetchMessages = useCallback(async () => {
-    if (!leadId) {
-      setMessages([])
-      setLoading(false)
-      return
-    }
+  const generate = useCallback(async (leadId: string, campaignId: string): Promise<GeneratedMessage | null> => {
+    setGenerating(true)
+    const { data, error } = await supabase.functions.invoke(EDGE_FN_GENERATE_MESSAGES, {
+      body: { lead_id: leadId, campaign_id: campaignId, auto_generated: false },
+    })
+    setGenerating(false)
+    if (error) return null
+    return data as GeneratedMessage
+  }, [])
 
-    const { data } = await supabase
-      .from('generated_messages')
-      .select('*')
-      .eq('lead_id', leadId)
-      .order('created_at', { ascending: false })
+  const getLatest = useCallback(async (leadId: string, campaignId: string): Promise<GeneratedMessage | null> => {
+    const { data } = await supabase.from('generated_messages').select('*')
+      .eq('lead_id', leadId).eq('campaign_id', campaignId)
+      .order('created_at', { ascending: false }).limit(1).single()
+    return data ?? null
+  }, [])
 
-    setMessages((data as GeneratedMessage[]) ?? [])
-    setLoading(false)
-  }, [leadId])
+  const markSent = useCallback(async (messageId: string, variationIndex: number): Promise<void> => {
+    await supabase.from('generated_messages').update({
+      was_sent: true, sent_variation: variationIndex, sent_at: new Date().toISOString(),
+    }).eq('id', messageId)
+  }, [])
 
-  useEffect(() => {
-    fetchMessages()
-  }, [fetchMessages])
-
-  async function markAsSent(messageId: string, variationIndex: number) {
-    await supabase
-      .from('generated_messages')
-      .update({ was_sent: true, sent_at: new Date().toISOString(), sent_variation: variationIndex })
-      .eq('id', messageId)
-
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === messageId
-          ? { ...m, was_sent: true, sent_at: new Date().toISOString(), sent_variation: variationIndex }
-          : m
-      )
-    )
-  }
-
-  return { messages, loading, markAsSent, refreshMessages: fetchMessages }
+  return { generating, generate, getLatest, markSent }
 }
