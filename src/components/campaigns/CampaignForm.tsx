@@ -1,85 +1,62 @@
-import { FormEvent, useState } from 'react'
-import { Input } from '@/components/ui/Input'
-import { Textarea } from '@/components/ui/Textarea'
-import { Select } from '@/components/ui/Select'
-import { Button } from '@/components/ui/Button'
-import { useStages } from '@/hooks/useStages'
+import { useState }      from 'react'
+import { useStages }     from '@/hooks/useStages'
 import type { Campaign } from '@/lib/types'
 
-interface CampaignFormProps {
-  campaign?: Campaign | null
-  workspaceId: string
-  onSubmit: (data: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) => void
-  onCancel: () => void
-}
+type CampaignFormData = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>
 
-export function CampaignForm({ campaign, workspaceId, onSubmit, onCancel }: CampaignFormProps) {
-  const { stages } = useStages()
-  const [name, setName] = useState(campaign?.name ?? '')
-  const [context, setContext] = useState(campaign?.context ?? '')
-  const [prompt, setPrompt] = useState(campaign?.prompt ?? '')
-  const [triggerStageId, setTriggerStageId] = useState(campaign?.trigger_stage_id ?? '')
-  const [isActive, setIsActive] = useState(campaign?.is_active ?? true)
+const F = 'bg-surface-base border border-surface-border rounded-input px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand w-full text-sm'
+const L = 'text-xs text-text-secondary mb-1 block'
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    onSubmit({
-      workspace_id: workspaceId,
-      name,
-      context,
-      prompt,
-      trigger_stage_id: triggerStageId || null,
-      is_active: isActive,
-    })
+export function CampaignForm({ initial, onSubmit, onCancel }: { initial?: Partial<CampaignFormData>; onSubmit: (data: CampaignFormData) => Promise<void>; onCancel: () => void }) {
+  const { stages }            = useStages()
+  const [loading, setLoading] = useState(false)
+  const [form, setForm]       = useState<CampaignFormData>({
+    name: initial?.name ?? '', context: initial?.context ?? '',
+    prompt: initial?.prompt ?? '', trigger_stage_id: initial?.trigger_stage_id ?? null,
+    is_active: initial?.is_active ?? true,
+  })
+
+  function set(field: keyof CampaignFormData, value: string | boolean | null) {
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }))
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); setLoading(true); await onSubmit(form); setLoading(false)
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Nome da campanha"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Ex: Follow-up inicial"
-        required
-      />
-      <Select
-        label="Etapa de disparo"
-        value={triggerStageId}
-        onChange={(e) => setTriggerStageId(e.target.value)}
-        options={stageOptions}
-        placeholder="Selecione a etapa que dispara a campanha"
-      />
-      <Textarea
-        label="Contexto"
-        value={context}
-        onChange={(e) => setContext(e.target.value)}
-        placeholder="Contexto sobre o lead, empresa, situacao..."
-        required
-      />
-      <Textarea
-        label="Prompt"
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Instrucoes para gerar a mensagem..."
-        required
-      />
-      <div className="flex items-center gap-3">
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="sr-only peer"
-          />
-          <div className="w-9 h-5 bg-surface-border rounded-full peer peer-checked:bg-brand transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full" />
-        </label>
-        <span className="text-sm text-text-secondary">Campanha ativa</span>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col">
+        <label className={L}>Nome da campanha *</label>
+        <input className={F} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Ex: Black Friday 2024" required />
       </div>
-      <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{campaign ? 'Salvar' : 'Criar Campanha'}</Button>
+      <div className="flex flex-col">
+        <label className={L}>Contexto da campanha *</label>
+        <p className="text-xs text-text-muted mb-1">Descreva o produto, oferta e informações para a IA gerar mensagens de qualidade.</p>
+        <textarea className={`${F} resize-none`} rows={5} value={form.context} onChange={(e) => set('context', e.target.value)} placeholder="Descreva o produto, oferta, período, condições..." required />
+      </div>
+      <div className="flex flex-col">
+        <label className={L}>Prompt de geração *</label>
+        <p className="text-xs text-text-muted mb-1">Tom, formato, estilo. Mencione quais campos do lead usar.</p>
+        <textarea className={`${F} resize-none`} rows={5} value={form.prompt} onChange={(e) => set('prompt', e.target.value)} placeholder="Tom consultivo. Use nome e empresa do lead. Até 3 parágrafos. Finalize com pergunta." required />
+      </div>
+      <div className="flex flex-col">
+        <label className={L}>Etapa gatilho (opcional)</label>
+        <p className="text-xs text-text-muted mb-1">Mensagens geradas automaticamente quando lead entrar nesta etapa.</p>
+        <select className={F} value={form.trigger_stage_id ?? ''} onChange={(e) => set('trigger_stage_id', e.target.value || null)}>
+          <option value="">Nenhuma — somente geração manual</option>
+          {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <input type="checkbox" id="is_active" checked={form.is_active} onChange={(e) => set('is_active', e.target.checked)} className="accent-brand" />
+        <label htmlFor="is_active" className="text-sm text-text-secondary cursor-pointer">Campanha ativa</label>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" onClick={onCancel} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
+        <button type="submit" disabled={loading} className="bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
+          {loading ? 'Salvando...' : 'Salvar campanha'}
+        </button>
       </div>
     </form>
   )

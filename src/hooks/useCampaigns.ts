@@ -3,7 +3,7 @@ import { supabase }                          from '@/lib/supabase'
 import { useWorkspace }                      from '@/contexts/WorkspaceContext'
 import type { Campaign }                     from '@/lib/types'
 
-type CreateCampaignData = Omit<Campaign, 'id' | 'created_at' | 'workspace_id'>
+type CreateCampaignData = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>
 
 export function useCampaigns() {
   const { workspace }             = useWorkspace()
