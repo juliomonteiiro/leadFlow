@@ -1,98 +1,42 @@
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useWorkspace } from './useWorkspace'
-import type { Lead, LeadCustomValue } from '@/lib/types'
+import { useCallback, useEffect, useState } from 'react'
+import { supabase }                          from '@/lib/supabase'
+import { useWorkspace }                      from '@/contexts/WorkspaceContext'
+import type { Lead }                         from '@/lib/types'
+
+type CreateLeadData = Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>
 
 export function useLeads() {
-  const { workspace } = useWorkspace()
-  const [leads, setLeads] = useState<Lead[]>([])
+  const { workspace }         = useWorkspace()
+  const [leads, setLeads]     = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
-
-  const fetchLeads = useCallback(async () => {
-    if (!workspace) {
-      setLeads([])
-      setLoading(false)
-      return
-    }
-
-    const { data } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: false })
-
-    setLeads((data as Lead[]) ?? [])
-    setLoading(false)
-  }, [workspace])
+  const [tick, setTick]       = useState(0)
 
   useEffect(() => {
-    fetchLeads()
-  }, [fetchLeads])
+    if (!workspace) return
+    setLoading(true)
+    supabase.from('leads').select('*')
+      .eq('workspace_id', workspace.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => { setLeads(data ?? []); setLoading(false) })
+  }, [workspace, tick])
 
-  async function createLead(lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) {
-    const { data } = await supabase
-      .from('leads')
-      .insert(lead)
-      .select()
-      .single()
-    if (data) {
-      setLeads((prev) => [data as Lead, ...prev])
-      await logActivity('lead_created', lead.workspace_id, (data as Lead).id, { name: lead.name })
-    }
-    return data as Lead | null
-  }
+  const updateStage = useCallback(async (leadId: string, stageId: string): Promise<void> => {
+    await supabase.from('leads').update({ stage_id: stageId }).eq('id', leadId)
+    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage_id: stageId } : l)))
+  }, [])
 
-  async function updateLead(id: string, updates: Partial<Lead>) {
-    await supabase.from('leads').update(updates).eq('id', id)
-    setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, ...updates } : l)))
-  }
+  const updateLead = useCallback(async (leadId: string, data: Partial<Lead>): Promise<Lead | null> => {
+    const { data: updated } = await supabase.from('leads').update(data).eq('id', leadId).select().single()
+    if (updated) setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)))
+    return updated
+  }, [])
 
-  async function deleteLead(id: string) {
-    await supabase.from('leads').delete().eq('id', id)
-    setLeads((prev) => prev.filter((l) => l.id !== id))
-  }
+  const createLead = useCallback(async (data: CreateLeadData): Promise<Lead | null> => {
+    if (!workspace) return null
+    const { data: created } = await supabase.from('leads').insert({ ...data, workspace_id: workspace.id }).select().single()
+    if (created) setLeads((prev) => [created, ...prev])
+    return created
+  }, [workspace])
 
-  async function updateLeadStage(leadId: string, newStageId: string) {
-    const lead = leads.find((l) => l.id === leadId)
-    if (!lead) return
-
-    await supabase
-      .from('leads')
-      .update({ stage_id: newStageId })
-      .eq('id', leadId)
-
-    setLeads((prev) =>
-      prev.map((l) => (l.id === leadId ? { ...l, stage_id: newStageId } : l))
-    )
-
-    await logActivity('stage_changed', lead.workspace_id, leadId, {
-      from: lead.stage_id,
-      to: newStageId,
-    })
-  }
-
-  async function getCustomValues(leadId: string): Promise<LeadCustomValue[]> {
-    const { data } = await supabase
-      .from('lead_custom_values')
-      .select('*')
-      .eq('lead_id', leadId)
-    return (data as LeadCustomValue[]) ?? []
-  }
-
-  async function setCustomValue(leadId: string, fieldId: string, value: string) {
-    await supabase
-      .from('lead_custom_values')
-      .upsert({ lead_id: leadId, field_id: fieldId, value }, { onConflict: 'lead_id,field_id' })
-  }
-
-  return { leads, loading, createLead, updateLead, deleteLead, updateLeadStage, getCustomValues, setCustomValue, refreshLeads: fetchLeads }
-}
-
-async function logActivity(type: string, workspaceId: string, leadId: string, metadata: Record<string, unknown>) {
-  await supabase.from('activity_logs').insert({
-    workspace_id: workspaceId,
-    lead_id: leadId,
-    activity_type: type,
-    metadata,
-  })
+  return { leads, loading, refetch: () => setTick((n) => n + 1), updateStage, updateLead, createLead }
 }
