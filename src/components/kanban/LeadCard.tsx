@@ -6,7 +6,7 @@ import type { Lead }       from '@/lib/types'
 export function LeadCard({ lead, onClick }: { lead: Lead; onClick: (lead: Lead) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id })
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+    <div data-kanban-card ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       {...attributes} {...listeners} onClick={() => onClick(lead)}
       className="bg-surface-card border border-surface-border rounded-card p-3 cursor-grab active:cursor-grabbing hover:border-brand transition-colors">
       <p className="text-text-primary text-sm font-medium truncate">{lead.name}</p>

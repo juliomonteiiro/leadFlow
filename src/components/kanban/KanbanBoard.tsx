@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { KanbanColumn }      from '@/components/kanban/KanbanColumn'
 import { useStages }         from '@/hooks/useStages'
@@ -18,6 +19,8 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
   const { campaigns }                                 = useCampaigns()
   const { showToast }                                 = useToast()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const dragStateRef = useRef({ active: false, startX: 0, startScrollLeft: 0 })
 
   function triggerCampaignMessages(leadId: string, stageId: string): void {
     campaigns.filter((c) => c.trigger_stage_id === stageId && c.is_active).forEach((campaign) => {
@@ -46,6 +49,34 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
     triggerCampaignMessages(leadId, newStageId)
   }
 
+  function handleMouseDown(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement
+    const isInteractive = target.closest('button, a, input, select, textarea, [role="button"]')
+    const isLeadCard = target.closest('[data-kanban-card]')
+    if (isInteractive || isLeadCard || !containerRef.current) return
+
+    dragStateRef.current = {
+      active: true,
+      startX: event.clientX,
+      startScrollLeft: containerRef.current.scrollLeft,
+    }
+    containerRef.current.style.cursor = 'grabbing'
+    containerRef.current.style.userSelect = 'none'
+  }
+
+  function handleMouseMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (!dragStateRef.current.active || !containerRef.current) return
+    const deltaX = event.clientX - dragStateRef.current.startX
+    containerRef.current.scrollLeft = dragStateRef.current.startScrollLeft - deltaX
+  }
+
+  function stopDragging() {
+    if (!containerRef.current) return
+    dragStateRef.current.active = false
+    containerRef.current.style.cursor = 'grab'
+    containerRef.current.style.userSelect = ''
+  }
+
   return (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -55,7 +86,14 @@ export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead
         </button>
       </div>
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div
+          ref={containerRef}
+          className="flex gap-4 overflow-x-auto pb-4 cursor-grab"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={stopDragging}
+          onMouseLeave={stopDragging}
+        >
           {stages.map((stage) => (
             <KanbanColumn key={stage.id} stage={stage}
               leads={leads.filter((l) => l.stage_id === stage.id)}
