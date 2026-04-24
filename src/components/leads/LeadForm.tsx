@@ -6,22 +6,93 @@ type LeadFormData = Pick<Lead, 'name' | 'email' | 'phone' | 'company' | 'job_tit
 
 const F = 'bg-surface-base border border-surface-border rounded-input px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand w-full text-sm'
 const L = 'text-xs text-text-secondary mb-1'
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim())
+}
+
+function isValidPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 11
+}
+
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
 
 export function LeadForm({ initialStageId, onSubmit, onCancel }: { initialStageId?: string; onSubmit: (data: LeadFormData) => Promise<void>; onCancel: () => void }) {
   const { stages }            = useStages()
   const [loading, setLoading] = useState(false)
+  const [errors, setErrors]   = useState<{ email?: string; phone?: string }>({})
   const [form, setForm]       = useState<LeadFormData>({ name: '', email: '', phone: '', company: '', job_title: '', source: '', notes: '', stage_id: initialStageId ?? stages[0]?.id ?? '' })
 
   function set(field: keyof LeadFormData, value: string) { setForm((prev) => ({ ...prev, [field]: value })) }
+  function validateEmail(value: string) {
+    setErrors((prev) => ({ ...prev, email: value.trim() !== '' && !isValidEmail(value) ? 'Informe um email válido.' : undefined }))
+  }
+  function validatePhone(value: string) {
+    setErrors((prev) => ({ ...prev, phone: value.trim() !== '' && !isValidPhone(value) ? 'Telefone deve ter DDD + número (10 ou 11 dígitos).' : undefined }))
+  }
 
-  async function handleSubmit(e: FormEvent) { e.preventDefault(); setLoading(true); await onSubmit(form); setLoading(false) }
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    const nextErrors: { email?: string; phone?: string } = {}
+
+    if (form.email.trim() !== '' && !isValidEmail(form.email)) {
+      nextErrors.email = 'Informe um email válido.'
+    }
+    if (form.phone.trim() !== '' && !isValidPhone(form.phone)) {
+      nextErrors.phone = 'Telefone deve ter DDD + número (10 ou 11 dígitos).'
+    }
+
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setLoading(true)
+    await onSubmit(form)
+    setLoading(false)
+  }
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col col-span-2"><label className={L}>Nome *</label><input className={F} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Nome do lead" required /></div>
-        <div className="flex flex-col"><label className={L}>Email</label><input className={F} type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="email@empresa.com" /></div>
-        <div className="flex flex-col"><label className={L}>Telefone</label><input className={F} value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(11) 99999-9999" /></div>
+        <div className="flex flex-col">
+          <label className={L}>Email</label>
+          <input
+            className={`${F} ${errors.email ? 'border-danger focus:border-danger' : ''}`}
+            type="email"
+            value={form.email}
+            onChange={(e) => {
+              const value = e.target.value
+              set('email', value)
+              if (errors.email) validateEmail(value)
+            }}
+            onBlur={(e) => validateEmail(e.target.value)}
+            placeholder="email@empresa.com"
+          />
+          {errors.email && <span className="text-danger text-xs mt-1">{errors.email}</span>}
+        </div>
+        <div className="flex flex-col">
+          <label className={L}>Telefone</label>
+          <input
+            className={`${F} ${errors.phone ? 'border-danger focus:border-danger' : ''}`}
+            value={form.phone}
+            onChange={(e) => {
+              const value = formatPhone(e.target.value)
+              set('phone', value)
+              if (errors.phone) validatePhone(value)
+            }}
+            onBlur={(e) => validatePhone(e.target.value)}
+            placeholder="(11) 99999-9999"
+          />
+          {errors.phone && <span className="text-danger text-xs mt-1">{errors.phone}</span>}
+        </div>
         <div className="flex flex-col"><label className={L}>Empresa</label><input className={F} value={form.company} onChange={(e) => set('company', e.target.value)} placeholder="Nome da empresa" /></div>
         <div className="flex flex-col"><label className={L}>Cargo</label><input className={F} value={form.job_title} onChange={(e) => set('job_title', e.target.value)} placeholder="Ex: CEO, Gerente..." /></div>
         <div className="flex flex-col"><label className={L}>Origem</label><input className={F} value={form.source} onChange={(e) => set('source', e.target.value)} placeholder="Ex: LinkedIn, Indicação..." /></div>

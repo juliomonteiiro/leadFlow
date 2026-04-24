@@ -6,6 +6,24 @@ import type { Lead, LeadCustomValue } from '@/lib/types'
 
 const F = 'bg-surface-base border border-surface-border rounded-input px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand w-full text-sm'
 const L = 'text-xs text-text-secondary mb-1 block'
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email.trim())
+}
+
+function isValidPhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, '')
+  return digits.length >= 10 && digits.length <= 11
+}
+
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+}
 
 export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead) => void }) {
   const { fields, getValues, upsertValue } = useCustomFields()
@@ -14,6 +32,7 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
   const [form, setForm]                 = useState<Lead>(lead)
   const [customValues, setCustomValues] = useState<LeadCustomValue[]>([])
   const [saving, setSaving]             = useState(false)
+  const [errors, setErrors]             = useState<{ email?: string; phone?: string }>({})
 
   const loadCustomValues = useCallback(async () => {
     setCustomValues(await getValues(lead.id))
@@ -23,6 +42,12 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
 
   function handleChange(field: keyof Lead, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+  function validateEmail(value: string) {
+    setErrors((prev) => ({ ...prev, email: value.trim() !== '' && !isValidEmail(value) ? 'Informe um email válido.' : undefined }))
+  }
+  function validatePhone(value: string) {
+    setErrors((prev) => ({ ...prev, phone: value.trim() !== '' && !isValidPhone(value) ? 'Telefone deve ter DDD + número (10 ou 11 dígitos).' : undefined }))
   }
 
   function handleCustomChange(fieldId: string, value: string) {
@@ -34,6 +59,16 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
   }
 
   async function handleSave() {
+    const nextErrors: { email?: string; phone?: string } = {}
+    if (form.email.trim() !== '' && !isValidEmail(form.email)) {
+      nextErrors.email = 'Informe um email válido.'
+    }
+    if (form.phone.trim() !== '' && !isValidPhone(form.phone)) {
+      nextErrors.phone = 'Telefone deve ter DDD + número (10 ou 11 dígitos).'
+    }
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
     setSaving(true)
     const updated = await updateLead(lead.id, {
       name: form.name, email: form.email, phone: form.phone,
@@ -54,9 +89,32 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
         <div className="col-span-2 flex flex-col"><label className={L}>Nome</label>
           <input className={F} value={form.name} onChange={(e) => handleChange('name', e.target.value)} /></div>
         <div className="flex flex-col"><label className={L}>Email</label>
-          <input className={F} type="email" value={form.email} onChange={(e) => handleChange('email', e.target.value)} /></div>
+          <input
+            className={`${F} ${errors.email ? 'border-danger focus:border-danger' : ''}`}
+            type="email"
+            value={form.email}
+            onChange={(e) => {
+              const value = e.target.value
+              handleChange('email', value)
+              if (errors.email) validateEmail(value)
+            }}
+            onBlur={(e) => validateEmail(e.target.value)}
+          />
+          {errors.email && <span className="text-danger text-xs mt-1">{errors.email}</span>}
+        </div>
         <div className="flex flex-col"><label className={L}>Telefone</label>
-          <input className={F} value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} /></div>
+          <input
+            className={`${F} ${errors.phone ? 'border-danger focus:border-danger' : ''}`}
+            value={form.phone}
+            onChange={(e) => {
+              const value = formatPhone(e.target.value)
+              handleChange('phone', value)
+              if (errors.phone) validatePhone(value)
+            }}
+            onBlur={(e) => validatePhone(e.target.value)}
+          />
+          {errors.phone && <span className="text-danger text-xs mt-1">{errors.phone}</span>}
+        </div>
         <div className="flex flex-col"><label className={L}>Empresa</label>
           <input className={F} value={form.company} onChange={(e) => handleChange('company', e.target.value)} /></div>
         <div className="flex flex-col"><label className={L}>Cargo</label>
