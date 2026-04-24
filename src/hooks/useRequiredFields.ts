@@ -21,8 +21,9 @@ export function useRequiredFields() {
       if (rule.custom_field_id) {
         const { data: cv } = await supabase.from('lead_custom_values').select('value')
           .eq('lead_id', lead.id).eq('field_id', rule.custom_field_id).single()
-        const def = rule.custom_field_definitions as { name: string } | null
-        if (!cv?.value || cv.value.trim() === '') missing.push({ label: def?.name ?? 'Campo personalizado' })
+        const defs = rule.custom_field_definitions as Array<{ name: string }> | null
+        const customName = defs?.[0]?.name
+        if (!cv?.value || cv.value.trim() === '') missing.push({ label: customName ?? 'Campo personalizado' })
       }
     }
     return missing

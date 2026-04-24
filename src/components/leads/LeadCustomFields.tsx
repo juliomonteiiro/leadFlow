@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useCustomFields } from '@/hooks/useCustomFields'
-import { useLeads } from '@/hooks/useLeads'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import type { LeadCustomValue } from '@/lib/types'
@@ -10,17 +9,16 @@ interface LeadCustomFieldsProps {
 }
 
 export function LeadCustomFields({ leadId }: LeadCustomFieldsProps) {
-  const { fields, loading: fieldsLoading } = useCustomFields()
-  const { getCustomValues, setCustomValue } = useLeads()
+  const { fields, loading: fieldsLoading, getValues, upsertValue } = useCustomFields()
   const [values, setValues] = useState<LeadCustomValue[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getCustomValues(leadId).then((data) => {
+    getValues(leadId).then((data: LeadCustomValue[]) => {
       setValues(data)
       setLoading(false)
     })
-  }, [leadId, getCustomValues])
+  }, [leadId, getValues])
 
   async function handleChange(fieldId: string, value: string) {
     setValues((prev) => {
@@ -30,7 +28,7 @@ export function LeadCustomFields({ leadId }: LeadCustomFieldsProps) {
       }
       return [...prev, { id: '', lead_id: leadId, field_id: fieldId, value }]
     })
-    await setCustomValue(leadId, fieldId, value)
+    await upsertValue(leadId, fieldId, value)
   }
 
   if (fieldsLoading || loading) return <div className="text-sm text-text-muted">Carregando...</div>

@@ -33,7 +33,28 @@ export function useLeads() {
 
   const createLead = useCallback(async (data: CreateLeadData): Promise<Lead | null> => {
     if (!workspace) return null
-    const { data: created } = await supabase.from('leads').insert({ ...data, workspace_id: workspace.id }).select().single()
+    const payload = {
+      workspace_id: workspace.id,
+      stage_id: data.stage_id,
+      assigned_to: data.assigned_to ?? null,
+      name: data.name.trim(),
+      email: data.email.trim(),
+      phone: data.phone.trim(),
+      company: data.company.trim(),
+      job_title: data.job_title.trim(),
+      source: data.source.trim(),
+      notes: data.notes.trim(),
+    }
+    const { data: created, error } = await supabase.from('leads').insert(payload).select().single()
+    if (error) {
+      console.error('Erro ao criar lead', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      })
+      return null
+    }
     if (created) setLeads((prev) => [created, ...prev])
     return created
   }, [workspace])

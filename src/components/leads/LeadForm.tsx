@@ -1,5 +1,6 @@
-import { useState, type FormEvent }  from 'react'
+import { useEffect, useState, type FormEvent }  from 'react'
 import { useStages } from '@/hooks/useStages'
+import { LEAD_SOURCE_OPTIONS } from '@/lib/constants'
 import type { Lead } from '@/lib/types'
 
 type LeadFormData = Pick<Lead, 'name' | 'email' | 'phone' | 'company' | 'job_title' | 'source' | 'notes' | 'stage_id'>
@@ -28,8 +29,23 @@ function formatPhone(value: string): string {
 export function LeadForm({ initialStageId, onSubmit, onCancel }: { initialStageId?: string; onSubmit: (data: LeadFormData) => Promise<void>; onCancel: () => void }) {
   const { stages }            = useStages()
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors]   = useState<{ email?: string; phone?: string }>({})
-  const [form, setForm]       = useState<LeadFormData>({ name: '', email: '', phone: '', company: '', job_title: '', source: '', notes: '', stage_id: initialStageId ?? stages[0]?.id ?? '' })
+  const [errors, setErrors]   = useState<{ email?: string; phone?: string; stage_id?: string }>({})
+  const [form, setForm]       = useState<LeadFormData>({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    job_title: '',
+    source: LEAD_SOURCE_OPTIONS[0],
+    notes: '',
+    stage_id: initialStageId ?? '',
+  })
+
+  useEffect(() => {
+    if (!form.stage_id && stages[0]?.id) {
+      setForm((prev) => ({ ...prev, stage_id: stages[0].id }))
+    }
+  }, [form.stage_id, stages])
 
   function set(field: keyof LeadFormData, value: string) { setForm((prev) => ({ ...prev, [field]: value })) }
   function validateEmail(value: string) {
@@ -41,13 +57,16 @@ export function LeadForm({ initialStageId, onSubmit, onCancel }: { initialStageI
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const nextErrors: { email?: string; phone?: string } = {}
+    const nextErrors: { email?: string; phone?: string; stage_id?: string } = {}
 
     if (form.email.trim() !== '' && !isValidEmail(form.email)) {
       nextErrors.email = 'Informe um email válido.'
     }
     if (form.phone.trim() !== '' && !isValidPhone(form.phone)) {
       nextErrors.phone = 'Telefone deve ter DDD + número (10 ou 11 dígitos).'
+    }
+    if (!form.stage_id) {
+      nextErrors.stage_id = 'Selecione uma etapa válida.'
     }
 
     setErrors(nextErrors)
@@ -95,11 +114,17 @@ export function LeadForm({ initialStageId, onSubmit, onCancel }: { initialStageI
         </div>
         <div className="flex flex-col"><label className={L}>Empresa</label><input className={F} value={form.company} onChange={(e) => set('company', e.target.value)} placeholder="Nome da empresa" /></div>
         <div className="flex flex-col"><label className={L}>Cargo</label><input className={F} value={form.job_title} onChange={(e) => set('job_title', e.target.value)} placeholder="Ex: CEO, Gerente..." /></div>
-        <div className="flex flex-col"><label className={L}>Origem</label><input className={F} value={form.source} onChange={(e) => set('source', e.target.value)} placeholder="Ex: LinkedIn, Indicação..." /></div>
+        <div className="flex flex-col">
+          <label className={L}>Origem</label>
+          <select className={F} value={form.source} onChange={(e) => set('source', e.target.value)}>
+            {LEAD_SOURCE_OPTIONS.map((source) => <option key={source} value={source}>{source}</option>)}
+          </select>
+        </div>
         <div className="flex flex-col"><label className={L}>Etapa</label>
           <select className={F} value={form.stage_id} onChange={(e) => set('stage_id', e.target.value)}>
             {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          {errors.stage_id && <span className="text-danger text-xs mt-1">{errors.stage_id}</span>}
         </div>
         <div className="flex flex-col col-span-2"><label className={L}>Observações</label><textarea className={`${F} resize-none`} rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="Informações adicionais..." /></div>
       </div>

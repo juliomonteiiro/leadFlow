@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useCustomFields }  from '@/hooks/useCustomFields'
 import { useActivityLog }   from '@/hooks/useActivityLog'
 import { useLeads }         from '@/hooks/useLeads'
+import { LEAD_SOURCE_OPTIONS } from '@/lib/constants'
 import type { Lead, LeadCustomValue } from '@/lib/types'
 
 const F = 'bg-surface-base border border-surface-border rounded-input px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-brand w-full text-sm'
@@ -120,7 +121,10 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
         <div className="flex flex-col"><label className={L}>Cargo</label>
           <input className={F} value={form.job_title} onChange={(e) => handleChange('job_title', e.target.value)} /></div>
         <div className="col-span-2 flex flex-col"><label className={L}>Origem</label>
-          <input className={F} value={form.source} onChange={(e) => handleChange('source', e.target.value)} /></div>
+          <select className={F} value={form.source} onChange={(e) => handleChange('source', e.target.value)}>
+            {LEAD_SOURCE_OPTIONS.map((source) => <option key={source} value={source}>{source}</option>)}
+          </select>
+        </div>
         <div className="col-span-2 flex flex-col"><label className={L}>Observações</label>
           <textarea className={`${F} resize-none`} rows={3} value={form.notes} onChange={(e) => handleChange('notes', e.target.value)} /></div>
       </div>

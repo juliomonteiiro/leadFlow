@@ -15,9 +15,10 @@ export function useDashboardMetrics() {
 
   useEffect(() => {
     if (!workspace) return
+    const currentWorkspace = workspace
     async function fetchMetrics() {
       setLoading(true)
-      const wid = workspace.id
+      const wid = currentWorkspace.id
       const { data: leadIds } = await supabase.from('leads').select('id').eq('workspace_id', wid)
       const ids = (leadIds ?? []).map((l) => l.id)
 
