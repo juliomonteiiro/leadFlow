@@ -71,6 +71,7 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
         <>
           <hr className="border-surface-border" />
           <p className="text-xs font-medium text-text-muted uppercase tracking-wide">Campos personalizados</p>
+          <p className="text-xs text-text-muted -mt-2">Edite os campos extras vinculados a este lead.</p>
           <div className="grid grid-cols-2 gap-4">
             {fields.map((field) => (
               <div key={field.id} className="flex flex-col">
