@@ -1,136 +1,67 @@
-import { useState, useCallback } from 'react'
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  closestCorners,
-} from '@dnd-kit/core'
-import type { Lead } from '@/lib/types'
-import { useLeads } from '@/hooks/useLeads'
-import { useStages } from '@/hooks/useStages'
-import { useCampaigns } from '@/hooks/useCampaigns'
-import { useToast } from '@/contexts/ToastContext'
-import { supabase } from '@/lib/supabase'
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { KanbanColumn }      from '@/components/kanban/KanbanColumn'
+import { useStages }         from '@/hooks/useStages'
+import { useLeads }          from '@/hooks/useLeads'
+import { useRequiredFields } from '@/hooks/useRequiredFields'
+import { useActivityLog }    from '@/hooks/useActivityLog'
+import { useCampaigns }      from '@/hooks/useCampaigns'
+import { useToast }          from '@/contexts/ToastContext'
+import { supabase }          from '@/lib/supabase'
 import { EDGE_FN_GENERATE_MESSAGES } from '@/lib/constants'
-import { KanbanColumn } from './KanbanColumn'
-import { LeadCard } from './LeadCard'
+import type { Lead }         from '@/lib/types'
 
-interface KanbanBoardProps {
-  onLeadClick: (lead: Lead) => void
-  onAddLead: (stageId: string) => void
-}
-
-export function KanbanBoard({ onLeadClick, onAddLead }: KanbanBoardProps) {
-  const { leads, updateLeadStage } = useLeads()
-  const { stages } = useStages()
-  const { campaigns } = useCampaigns()
-  const { showToast } = useToast()
-  const [activeLead, setActiveLead] = useState<Lead | null>(null)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  )
-
-  const getLeadsByStage = useCallback(
-    (stageId: string) => leads.filter((l) => l.stage_id === stageId),
-    [leads]
-  )
-
-  function getCurrentStageId(leadId: string): string | null {
-    return leads.find((l) => l.id === leadId)?.stage_id ?? null
-  }
-
-  async function checkRequiredFields(leadId: string, _stageId: string): Promise<string[]> {
-    const lead = leads.find((l) => l.id === leadId)
-    if (!lead) return []
-
-    const { data: requiredFields } = await supabase
-      .from('stage_required_fields')
-      .select('standard_field, custom_field_id')
-      .eq('stage_id', _stageId)
-
-    const missing: string[] = []
-    for (const req of requiredFields ?? []) {
-      if (req.standard_field) {
-        const value = lead[req.standard_field as keyof Lead]
-        if (!value || value === '') {
-          missing.push(req.standard_field)
-        }
-      }
-    }
-    return missing
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    setActiveLead(null)
-
-    if (!over || active.id === over.id) return
-
-    const leadId = String(active.id)
-    const newStageId = String(over.id)
-    const oldStageId = getCurrentStageId(leadId)
-
-    if (!oldStageId || oldStageId === newStageId) return
-
-    const missingFields = await checkRequiredFields(leadId, newStageId)
-    if (missingFields.length > 0) {
-      showToast(`Campos obrigatorios faltando: ${missingFields.join(', ')}`, 'error')
-      return
-    }
-
-    await updateLeadStage(leadId, newStageId)
-    triggerCampaignMessages(leadId, newStageId)
-  }
+export function KanbanBoard({ onLeadClick, onCreateClick }: { onLeadClick: (lead: Lead) => void; onCreateClick: () => void }) {
+  const { stages, loading: stagesLoading }            = useStages()
+  const { leads, loading: leadsLoading, updateStage } = useLeads()
+  const { checkRequiredFields }                       = useRequiredFields()
+  const { log }                                       = useActivityLog()
+  const { campaigns }                                 = useCampaigns()
+  const { showToast }                                 = useToast()
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   function triggerCampaignMessages(leadId: string, stageId: string): void {
-    const matchingCampaigns = campaigns.filter(
-      (c) => c.trigger_stage_id === stageId && c.is_active
-    )
-    for (const campaign of matchingCampaigns) {
+    campaigns.filter((c) => c.trigger_stage_id === stageId && c.is_active).forEach((campaign) => {
       supabase.functions.invoke(EDGE_FN_GENERATE_MESSAGES, {
         body: { lead_id: leadId, campaign_id: campaign.id, auto_generated: true },
       })
+    })
+  }
+
+  async function handleDragEnd(event: DragEndEvent): Promise<void> {
+    const { active, over } = event
+    if (!over) return
+    const leadId     = String(active.id)
+    const newStageId = String(over.id)
+    const lead       = leads.find((l) => l.id === leadId)
+    if (!lead || lead.stage_id === newStageId) return
+    const missingFields = await checkRequiredFields(lead, newStageId)
+    if (missingFields.length > 0) {
+      showToast(`Campos obrigatórios: ${missingFields.map((f) => f.label).join(', ')}`, 'error')
+      return
     }
+    const oldStageId = lead.stage_id
+    await updateStage(leadId, newStageId)
+    await log({ leadId, activityType: 'stage_changed', metadata: { from: oldStageId, to: newStageId } })
+    triggerCampaignMessages(leadId, newStageId)
   }
-
-  function handleDragStart(event: DragStartEvent) {
-    const lead = leads.find((l) => l.id === String(event.active.id))
-    setActiveLead(lead ?? null)
-  }
-
-  const sortedStages = [...stages].sort((a, b) => a.position - b.position)
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCorners}
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
-    >
-      <div className="flex gap-4 overflow-x-auto pb-4 h-full">
-        {sortedStages.map((stage) => (
-          <KanbanColumn
-            key={stage.id}
-            stage={stage}
-            leads={getLeadsByStage(stage.id)}
-            onLeadClick={onLeadClick}
-            onAddLead={onAddLead}
-          />
-        ))}
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-text-primary">Kanban</h1>
+        <button onClick={onCreateClick} className="bg-brand hover:bg-brand-hover text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
+          + Novo lead
+        </button>
       </div>
-
-      <DragOverlay>
-        {activeLead && (
-          <div className="opacity-90">
-            <LeadCard lead={activeLead} onClick={() => {}} />
-          </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {stages.map((stage) => (
+            <KanbanColumn key={stage.id} stage={stage}
+              leads={leads.filter((l) => l.stage_id === stage.id)}
+              loading={stagesLoading || leadsLoading} onLeadClick={onLeadClick} />
+          ))}
+        </div>
+      </DndContext>
+    </>
   )
 }
