@@ -167,10 +167,15 @@ function StageRulesSection() {
 export default function SettingsPage() {
   return (
     <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-      <div className="max-w-2xl mx-auto flex flex-col gap-6">
-        <h1 className="text-xl font-semibold text-text-primary">Configurações</h1>
-        <CustomFieldsSection />
-        <StageRulesSection />
+      <div className="flex flex-col gap-6">
+        <div className="mb-1">
+          <h1 className="text-xl font-semibold text-text-primary">Configurações</h1>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+          <CustomFieldsSection />
+          <StageRulesSection />
+        </div>
       </div>
     </Suspense>
   )

@@ -27,14 +27,16 @@ export function Header({ sidebarCollapsed }: HeaderProps) {
         </div>
       </div>
 
-      <div className="flex flex-1 items-center gap-8 min-w-0 px-6">
+      <div className="flex flex-1 items-center min-w-0 px-6">
         <span className="text-text-secondary text-sm whitespace-nowrap shrink-0">
-          Bem-vindo, {userName}
+          Bem-vindo, <span className="text-text-primary font-medium">{userName}</span>
         </span>
-        {workspace?.name && (
-          <span className="text-text-secondary text-sm truncate">{workspace.name}</span>
-        )}
         <div className="flex-1 min-w-0" />
+        {workspace?.name && (
+          <span className="text-xs text-text-secondary bg-surface-base border border-surface-border px-2.5 py-1 rounded-full truncate max-w-[22rem]">
+            Workspace: <span className="text-text-primary font-medium">{workspace.name}</span>
+          </span>
+        )}
       </div>
     </header>
   )

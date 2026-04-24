@@ -33,13 +33,13 @@
 
 /* Light mode override */
 .light {
-  --color-surface-base:   #f8fafc;
-  --color-surface-card:   #ffffff;
-  --color-surface-hover:  #f1f5f9;
-  --color-surface-border: #e2e8f0;
+  --color-surface-base:   #e3e8ef;
+  --color-surface-card:   #edf2f7;
+  --color-surface-hover:  #dde5ee;
+  --color-surface-border: #c4d0de;
   --color-text-primary:   #0f172a;
-  --color-text-secondary: #475569;
-  --color-text-muted:     #94a3b8;
+  --color-text-secondary: #243447;
+  --color-text-muted:     #54657a;
 }
 
 html {
