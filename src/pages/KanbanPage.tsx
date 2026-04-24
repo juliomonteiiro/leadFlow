@@ -2,6 +2,7 @@ import { Suspense, useState } from 'react'
 import { KanbanBoard }        from '@/components/kanban/KanbanBoard'
 import { Modal }              from '@/components/ui/Modal'
 import { LeadForm }           from '@/components/leads/LeadForm'
+import { LeadModal }          from '@/components/leads/LeadModal'
 import { Skeleton }           from '@/components/ui/Skeleton'
 import { useLeads }           from '@/hooks/useLeads'
 import { useActivityLog }     from '@/hooks/useActivityLog'
@@ -32,9 +33,11 @@ export default function KanbanPage() {
         </Modal>
       )}
       {selectedLead && (
-        <Modal title={selectedLead.name} onClose={() => setSelectedLead(null)} size="lg">
-          <p className="text-text-secondary text-sm">Modal de detalhes — próximo prompt.</p>
-        </Modal>
+        <LeadModal
+          lead={selectedLead}
+          onClose={() => setSelectedLead(null)}
+          onUpdate={(updated) => setSelectedLead(updated)}
+        />
       )}
     </>
   )
