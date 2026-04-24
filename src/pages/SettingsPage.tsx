@@ -83,6 +83,7 @@ function StageRulesSection() {
   const [selectedStageId, setStageId]      = useState<string>('')
   const [rules, setRules]                  = useState<StageRequiredField[]>([])
   const [loadingRules, setLoadingRules]    = useState(false)
+  const selectedStage = stages.find((s) => s.id === selectedStageId)
 
   useEffect(() => {
     if (!selectedStageId) { setRules([]); return }
@@ -125,6 +126,9 @@ function StageRulesSection() {
         loadingRules ? <Skeleton className="h-20 w-full" /> : (
           <>
             <div className="flex flex-col gap-2 mb-4">
+              <p className="text-sm text-text-secondary">
+                Etapa selecionada: <span className="text-text-primary font-medium">{selectedStage?.name}</span>
+              </p>
               <p className="text-xs text-text-muted">Campos obrigatórios nesta etapa:</p>
               {rules.length === 0 && <p className="text-text-muted text-sm py-2">Nenhum campo definido.</p>}
               {rules.map((rule) => (
