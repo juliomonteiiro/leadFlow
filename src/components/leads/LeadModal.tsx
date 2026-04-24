@@ -2,6 +2,7 @@ import { useState }        from 'react'
 import { Modal }           from '@/components/ui/Modal'
 import { Tabs }            from '@/components/ui/Tabs'
 import { LeadDataTab }     from '@/components/leads/LeadDataTab'
+import { LeadMessagesTab } from '@/components/leads/LeadMessagesTab'
 import { LeadActivityTab } from '@/components/leads/LeadActivityTab'
 import type { Lead }       from '@/lib/types'
 
@@ -18,7 +19,7 @@ export function LeadModal({ lead, onClose, onUpdate }: { lead: Lead; onClose: ()
     <Modal onClose={onClose} title={lead.name} size="lg">
       <Tabs tabs={TABS} activeId={activeTab} onChange={setActiveTab} />
       {activeTab === 'data'     && <LeadDataTab lead={lead} onUpdate={onUpdate} />}
-      {activeTab === 'messages' && <p className="text-text-muted text-sm text-center py-8">Integração com IA — próximo prompt.</p>}
+      {activeTab === 'messages' && <LeadMessagesTab lead={lead} />}
       {activeTab === 'activity' && <LeadActivityTab leadId={lead.id} />}
     </Modal>
   )
