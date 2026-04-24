@@ -1,55 +1,30 @@
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useWorkspace } from './useWorkspace'
-import type { CustomFieldDefinition } from '@/lib/types'
+import { useCallback, useEffect, useState } from 'react'
+import { supabase }        from '@/lib/supabase'
+import { useWorkspace }    from '@/contexts/WorkspaceContext'
+import type { CustomFieldDefinition, LeadCustomValue } from '@/lib/types'
 
 export function useCustomFields() {
-  const { workspace } = useWorkspace()
-  const [fields, setFields] = useState<CustomFieldDefinition[]>([])
+  const { workspace }         = useWorkspace()
+  const [fields, setFields]   = useState<CustomFieldDefinition[]>([])
   const [loading, setLoading] = useState(true)
-
-  const fetchFields = useCallback(async () => {
-    if (!workspace) {
-      setFields([])
-      setLoading(false)
-      return
-    }
-
-    const { data } = await supabase
-      .from('custom_field_definitions')
-      .select('*')
-      .eq('workspace_id', workspace.id)
-      .order('position')
-
-    setFields((data as CustomFieldDefinition[]) ?? [])
-    setLoading(false)
-  }, [workspace])
+  const [tick, setTick]       = useState(0)
 
   useEffect(() => {
-    fetchFields()
-  }, [fetchFields])
+    if (!workspace) return
+    supabase.from('custom_field_definitions').select('*')
+      .eq('workspace_id', workspace.id).order('position')
+      .then(({ data }) => { setFields(data ?? []); setLoading(false) })
+  }, [workspace, tick])
 
-  async function createField(field: Omit<CustomFieldDefinition, 'id' | 'created_at'>) {
-    const { data } = await supabase
-      .from('custom_field_definitions')
-      .insert(field)
-      .select()
-      .single()
-    if (data) {
-      setFields((prev) => [...prev, data as CustomFieldDefinition].sort((a, b) => a.position - b.position))
-    }
-    return data as CustomFieldDefinition | null
-  }
+  const getValues = useCallback(async (leadId: string): Promise<LeadCustomValue[]> => {
+    const { data } = await supabase.from('lead_custom_values').select('*').eq('lead_id', leadId)
+    return data ?? []
+  }, [])
 
-  async function updateField(id: string, updates: Partial<CustomFieldDefinition>) {
-    await supabase.from('custom_field_definitions').update(updates).eq('id', id)
-    setFields((prev) => prev.map((f) => (f.id === id ? { ...f, ...updates } : f)))
-  }
+  const upsertValue = useCallback(async (leadId: string, fieldId: string, value: string): Promise<void> => {
+    await supabase.from('lead_custom_values')
+      .upsert({ lead_id: leadId, field_id: fieldId, value }, { onConflict: 'lead_id,field_id' })
+  }, [])
 
-  async function deleteField(id: string) {
-    await supabase.from('custom_field_definitions').delete().eq('id', id)
-    setFields((prev) => prev.filter((f) => f.id !== id))
-  }
-
-  return { fields, loading, createField, updateField, deleteField, refreshFields: fetchFields }
+  return { fields, loading, refetch: () => setTick((n) => n + 1), getValues, upsertValue }
 }
