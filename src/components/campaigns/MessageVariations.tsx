@@ -46,7 +46,9 @@ export function MessageVariations({ lead, campaignId, campaignName }: { lead: Le
     setSending(variationIndex)
     await markSent(message.id, variationIndex)
     await log({ leadId: lead.id, activityType: 'message_sent', metadata: { campaign_id: campaignId, campaign_name: campaignName, variation: variationIndex } })
-    const tryingStage = stages.find((s) => s.name === STAGE_TRYING_CONTACT_NAME)
+    const tryingStage = stages.find(
+      (s) => s.name.trim().toLowerCase() === STAGE_TRYING_CONTACT_NAME.trim().toLowerCase()
+    )
     if (tryingStage && lead.stage_id !== tryingStage.id) {
       await updateStage(lead.id, tryingStage.id)
       await log({ leadId: lead.id, activityType: 'stage_changed', metadata: { from: lead.stage_id, to: tryingStage.id, reason: 'message_sent' } })
