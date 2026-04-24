@@ -1,39 +1,22 @@
-import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
-import { useWorkspace } from './useWorkspace'
-import type { ActivityLog } from '@/lib/types'
+import { useCallback }       from 'react'
+import { supabase }          from '@/lib/supabase'
+import { useWorkspace }      from '@/contexts/WorkspaceContext'
+import type { ActivityType } from '@/lib/types'
 
-export function useActivityLog(leadId?: string | null) {
-  const { workspace } = useWorkspace()
-  const [logs, setLogs] = useState<ActivityLog[]>([])
-  const [loading, setLoading] = useState(true)
+interface LogParams {
+  leadId:       string
+  activityType: ActivityType
+  metadata?:    Record<string, unknown>
+}
 
-  const fetchLogs = useCallback(async () => {
-    if (!workspace) {
-      setLogs([])
-      setLoading(false)
-      return
-    }
-
-    let query = supabase
-      .from('activity_logs')
-      .select('*')
-      .eq('workspace_id', workspace.id)
-      .order('created_at', { ascending: false })
-      .limit(100)
-
-    if (leadId) {
-      query = query.eq('lead_id', leadId)
-    }
-
-    const { data } = await query
-    setLogs((data as ActivityLog[]) ?? [])
-    setLoading(false)
-  }, [workspace, leadId])
-
-  useEffect(() => {
-    fetchLogs()
-  }, [fetchLogs])
-
-  return { logs, loading, refreshLogs: fetchLogs }
+export function useActivityLog() {
+  const { workspace, user } = useWorkspace()
+  const log = useCallback(async ({ leadId, activityType, metadata = {} }: LogParams): Promise<void> => {
+    if (!workspace || !user) return
+    await supabase.from('activity_logs').insert({
+      workspace_id: workspace.id, lead_id: leadId,
+      user_id: user.id, activity_type: activityType, metadata,
+    })
+  }, [workspace, user])
+  return { log }
 }
