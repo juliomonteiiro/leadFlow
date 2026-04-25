@@ -186,30 +186,20 @@ function CustomFieldsSection() {
 function StageRulesSection() {
   const { stages, loading: stagesLoading } = useStages()
   const { fields: customFields }           = useCustomFields()
-  const [selectedStageId, setStageId]      = useState<string>('')
   const [allRules, setAllRules]            = useState<StageRequiredField[]>([])
   const [loadingRules, setLoadingRules]    = useState(false)
-  const [ruleToDelete, setRuleToDelete]    = useState<StageRequiredField | null>(null)
-  const [deletingRule, setDeletingRule]    = useState(false)
-  const [editingRule, setEditingRule]      = useState<StageRequiredField | null>(null)
-  const [editRuleType, setEditRuleType]    = useState<'standard' | 'custom'>('standard')
-  const [editStandardField, setEditStandardField] = useState<string>('')
-  const [editCustomFieldId, setEditCustomFieldId] = useState<string>('')
-  const [savingRuleEdit, setSavingRuleEdit] = useState(false)
-  const selectedStage = stages.find((s) => s.id === selectedStageId)
-  const selectedStageRules = allRules.filter((rule) => rule.stage_id === selectedStageId)
-  const usedStandardFields = new Set(
-    selectedStageRules
-      .map((rule) => rule.standard_field)
-      .filter((field): field is string => Boolean(field))
-  )
-  const usedCustomFieldIds = new Set(
-    selectedStageRules
-      .map((rule) => rule.custom_field_id)
-      .filter((fieldId): fieldId is string => Boolean(fieldId))
-  )
-  const availableStandardFields = STANDARD_LEAD_FIELDS.filter((field) => !usedStandardFields.has(field.key))
-  const availableCustomFields = customFields.filter((field) => !usedCustomFieldIds.has(field.id))
+
+  const [ruleModalOpen, setRuleModalOpen]  = useState(false)
+  const [ruleModalMode, setRuleModalMode]  = useState<'create' | 'edit'>('create')
+  const [ruleModalStageId, setRuleModalStageId] = useState<string>('')
+  const [selectedStandardKeys, setSelectedStandardKeys] = useState<Set<string>>(new Set())
+  const [selectedCustomIds, setSelectedCustomIds] = useState<Set<string>>(new Set())
+  const [savingRuleModal, setSavingRuleModal] = useState(false)
+
+  type RuleDeleteTarget = { type: 'stage'; stageId: string; stageName: string }
+
+  const [deleteTarget, setDeleteTarget] = useState<RuleDeleteTarget | null>(null)
+  const [deletingRules, setDeletingRules] = useState(false)
 
   useEffect(() => {
     if (stages.length === 0) {
@@ -220,59 +210,6 @@ function StageRulesSection() {
     supabase.from('stage_required_fields').select('*').in('stage_id', stages.map((s) => s.id))
       .then(({ data }) => { setAllRules((data ?? []) as StageRequiredField[]); setLoadingRules(false) })
   }, [stages])
-
-  async function addRule(payload: { standard_field?: string; custom_field_id?: string }) {
-    const { data } = await supabase.from('stage_required_fields')
-      .insert({ stage_id: selectedStageId, ...payload }).select().single()
-    if (data) setAllRules((prev) => [...prev, data as StageRequiredField])
-  }
-
-  async function removeRule(id: string) {
-    await supabase.from('stage_required_fields').delete().eq('id', id)
-    setAllRules((prev) => prev.filter((r) => r.id !== id))
-  }
-
-  function openEditRule(rule: StageRequiredField): void {
-    setEditingRule(rule)
-    if (rule.standard_field) {
-      setEditRuleType('standard')
-      setEditStandardField(rule.standard_field)
-      setEditCustomFieldId('')
-      return
-    }
-    setEditRuleType('custom')
-    setEditStandardField('')
-    setEditCustomFieldId(rule.custom_field_id ?? '')
-  }
-
-  function closeEditRule(): void {
-    setEditingRule(null)
-    setEditRuleType('standard')
-    setEditStandardField('')
-    setEditCustomFieldId('')
-  }
-
-  async function saveEditRule() {
-    if (!editingRule) return
-    if (editRuleType === 'standard' && !editStandardField) return
-    if (editRuleType === 'custom' && !editCustomFieldId) return
-
-    setSavingRuleEdit(true)
-    const payload = editRuleType === 'standard'
-      ? { standard_field: editStandardField, custom_field_id: null }
-      : { standard_field: null, custom_field_id: editCustomFieldId }
-    const { data } = await supabase.from('stage_required_fields')
-      .update(payload)
-      .eq('id', editingRule.id)
-      .select()
-      .single()
-
-    if (data) {
-      setAllRules((prev) => prev.map((rule) => (rule.id === editingRule.id ? data as StageRequiredField : rule)))
-    }
-    setSavingRuleEdit(false)
-    closeEditRule()
-  }
 
   function getRuleLabel(rule: StageRequiredField): string {
     if (rule.standard_field) {
@@ -286,142 +223,313 @@ function StageRulesSection() {
     return customFields.find((f) => f.id === rule.custom_field_id)?.name ?? 'Campo personalizado'
   }
 
+  function getStageRules(stageId: string): StageRequiredField[] {
+    return allRules.filter((rule) => rule.stage_id === stageId)
+  }
+
+  const stagesWithRules = stages.filter((stage) => getStageRules(stage.id).length > 0)
+  const stagesWithoutRules = stages.filter((stage) => getStageRules(stage.id).length === 0)
+
+  function openCreateRuleModal(): void {
+    setRuleModalMode('create')
+    setRuleModalStageId(stagesWithoutRules[0]?.id ?? '')
+    setSelectedStandardKeys(new Set())
+    setSelectedCustomIds(new Set())
+    setRuleModalOpen(true)
+  }
+
+  function openEditStageRules(stageId: string): void {
+    setRuleModalMode('edit')
+    setRuleModalStageId(stageId)
+    const rules = getStageRules(stageId)
+    const std = new Set<string>()
+    const custom = new Set<string>()
+    for (const rule of rules) {
+      if (rule.standard_field) std.add(rule.standard_field)
+      if (rule.custom_field_id) custom.add(rule.custom_field_id)
+    }
+    setSelectedStandardKeys(std)
+    setSelectedCustomIds(custom)
+    setRuleModalOpen(true)
+  }
+
+  function closeRuleModal(): void {
+    setRuleModalOpen(false)
+    setRuleModalMode('create')
+    setRuleModalStageId('')
+    setSelectedStandardKeys(new Set())
+    setSelectedCustomIds(new Set())
+  }
+
+  function toggleStandard(key: string): void {
+    setSelectedStandardKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  function toggleCustom(id: string): void {
+    setSelectedCustomIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function persistStageRules(stageId: string, nextStandardKeys: Set<string>, nextCustomIds: Set<string>): Promise<void> {
+    const existing = getStageRules(stageId)
+    const existingStandard = new Set(existing.map((r) => r.standard_field).filter(Boolean) as string[])
+    const existingCustom = new Set(existing.map((r) => r.custom_field_id).filter(Boolean) as string[])
+
+    const toRemove = existing.filter((rule) => {
+      if (rule.standard_field) return !nextStandardKeys.has(rule.standard_field)
+      if (rule.custom_field_id) return !nextCustomIds.has(rule.custom_field_id)
+      return true
+    })
+
+    const toInsertStandard = [...nextStandardKeys].filter((key) => !existingStandard.has(key))
+    const toInsertCustom = [...nextCustomIds].filter((id) => !existingCustom.has(id))
+
+    for (const rule of toRemove) {
+      await supabase.from('stage_required_fields').delete().eq('id', rule.id)
+    }
+
+    const inserts: Array<{ stage_id: string; standard_field: string | null; custom_field_id: string | null }> = [
+      ...toInsertStandard.map((standard_field) => ({ stage_id: stageId, standard_field, custom_field_id: null })),
+      ...toInsertCustom.map((custom_field_id) => ({ stage_id: stageId, standard_field: null, custom_field_id })),
+    ]
+
+    if (inserts.length > 0) {
+      const { data } = await supabase.from('stage_required_fields').insert(inserts).select()
+      const created = (data ?? []) as StageRequiredField[]
+      setAllRules((prev) => {
+        const without = prev.filter((r) => !toRemove.some((x) => x.id === r.id))
+        return [...without, ...created]
+      })
+      return
+    }
+
+    setAllRules((prev) => prev.filter((r) => !toRemove.some((x) => x.id === r.id)))
+  }
+
+  async function saveRuleModal(): Promise<void> {
+    if (!ruleModalStageId) return
+    setSavingRuleModal(true)
+    await persistStageRules(ruleModalStageId, selectedStandardKeys, selectedCustomIds)
+    setSavingRuleModal(false)
+    closeRuleModal()
+  }
+
+  async function confirmDelete(): Promise<void> {
+    if (!deleteTarget) return
+    setDeletingRules(true)
+    const ids = getStageRules(deleteTarget.stageId).map((r) => r.id)
+    if (ids.length > 0) {
+      await supabase.from('stage_required_fields').delete().in('id', ids)
+      setAllRules((prev) => prev.filter((r) => r.stage_id !== deleteTarget.stageId))
+    }
+    setDeletingRules(false)
+    setDeleteTarget(null)
+    if (ruleModalOpen && ruleModalMode === 'edit' && deleteTarget.type === 'stage' && ruleModalStageId === deleteTarget.stageId) {
+      closeRuleModal()
+    }
+  }
+
   if (stagesLoading) return <Skeleton className="h-40 w-full" />
 
   return (
     <div className="bg-surface-card border border-surface-border rounded-card p-5">
-      <h2 className="text-text-primary font-medium mb-1">Regras de transição</h2>
-      <p className="text-text-muted text-xs mb-4">Campos obrigatórios para mover um lead para cada etapa.</p>
-      <div className="flex flex-col gap-1 mb-4">
-        <label className="text-xs text-text-secondary">Etapa</label>
-        <select className={F} value={selectedStageId} onChange={(e) => setStageId(e.target.value)}>
-          <option value="">Selecionar etapa...</option>
-          {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div>
+          <h2 className="text-text-primary font-medium">Regras de transição</h2>
+          <p className="text-text-muted text-xs mt-1">Campos obrigatórios para mover um lead para cada etapa.</p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateRuleModal}
+          disabled={stagesWithoutRules.length === 0}
+          className="flex items-center gap-2 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-3 py-2 rounded-btn text-sm font-medium transition-colors shrink-0"
+        >
+          <Plus size={14} />
+          Adicionar regra
+        </button>
       </div>
 
-      {selectedStageId && (
-        loadingRules ? <Skeleton className="h-20 w-full" /> : (
-          <>
-            <div className="flex flex-col gap-2 mb-4">
-              <p className="text-sm text-text-secondary">
-                Etapa selecionada: <span className="text-text-primary font-medium">{selectedStage?.name}</span>
-              </p>
-              <p className="text-xs text-text-muted">Campos obrigatórios nesta etapa:</p>
-              {selectedStageRules.length === 0 && <p className="text-text-muted text-sm py-2">Nenhum campo definido.</p>}
-              {selectedStageRules.map((rule) => (
-                <div key={rule.id} className="flex items-center justify-between p-2 bg-surface-base rounded-card">
-                  <span className="text-text-primary text-sm">{getRuleLabel(rule)}</span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => openEditRule(rule)} className="p-1 text-text-muted hover:text-text-primary transition-colors"><Pencil size={13} /></button>
-                    <button onClick={() => setRuleToDelete(rule)} className="p-1 text-text-muted hover:text-danger transition-colors"><Trash2 size={13} /></button>
+      {loadingRules ? (
+        <Skeleton className="h-40 w-full mt-4" />
+      ) : (
+        <div className="flex flex-col gap-2 mt-4">
+          {stagesWithRules.length === 0 && (
+            <p className="text-text-muted text-sm text-center py-6">Nenhuma regra configurada ainda.</p>
+          )}
+          {stagesWithRules.map((stage) => {
+            const stageRules = getStageRules(stage.id)
+            const preview = stageRules.map(getRuleLabel).slice(0, 6).join(' · ')
+            const extra = stageRules.length > 6 ? ` (+${stageRules.length - 6})` : ''
+            return (
+              <div
+                key={stage.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openEditStageRules(stage.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openEditStageRules(stage.id)
+                  }
+                }}
+                className="w-full text-left p-3 bg-surface-base rounded-card border border-surface-border hover:border-brand/40 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-text-primary text-sm font-medium truncate">{stage.name}</span>
+                      <span className="text-text-muted text-xs bg-surface-hover px-1.5 py-0.5 rounded-full border border-surface-border shrink-0">
+                        {stageRules.length} {stageRules.length === 1 ? 'regra' : 'regras'}
+                      </span>
+                    </div>
+                    <p className="text-text-muted text-xs mt-1 line-clamp-2">{preview}{extra}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="p-1.5 text-text-muted">
+                      <Pencil size={14} />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setDeleteTarget({ type: 'stage', stageId: stage.id, stageName: stage.name })
+                      }}
+                      className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-btn transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="border-t border-surface-border pt-4">
-              <p className="text-xs text-text-muted mb-2">Adicionar campo obrigatório:</p>
-              <div className="flex flex-col gap-1">
-                {availableStandardFields.map((f) => (
-                  <button key={f.key}
-                    onClick={() => addRule({ standard_field: f.key })}
-                    className="text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-btn transition-colors">
-                    + {f.label}
-                  </button>
-                ))}
-                {availableCustomFields.map((f) => (
-                  <button key={f.id}
-                    onClick={() => addRule({ custom_field_id: f.id })}
-                    className="text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-surface-hover rounded-btn transition-colors">
-                    + {f.name} (personalizado)
-                  </button>
-                ))}
-                {availableStandardFields.length === 0 && availableCustomFields.length === 0 && (
-                  <p className="text-xs text-text-muted py-2">Todos os campos disponíveis já foram adicionados como regra nesta etapa.</p>
-                )}
               </div>
-            </div>
-          </>
-        )
+            )
+          })}
+        </div>
       )}
-      <div className="mt-5 border-t border-surface-border pt-4">
-        <p className="text-xs text-text-muted mb-2">Regras já configuradas no funil:</p>
-        {stages.map((stage) => {
-          const stageRules = allRules.filter((rule) => rule.stage_id === stage.id)
-          if (stageRules.length === 0) return null
-          return (
-            <div key={stage.id} className="mb-2 rounded-card border border-surface-border p-3 bg-surface-base">
-              <p className="text-sm text-text-primary font-medium mb-1">{stage.name}</p>
-              <div className="flex flex-col gap-2">
-                {stageRules.map((rule) => (
-                  <div key={rule.id} className="flex items-center justify-between bg-surface-hover border border-surface-border px-2 py-1 rounded-full">
-                    <span className="text-xs text-text-secondary">{getRuleLabel(rule)}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { setStageId(stage.id); openEditRule(rule) }} className="p-1 text-text-muted hover:text-text-primary transition-colors"><Pencil size={12} /></button>
-                      <button onClick={() => setRuleToDelete(rule)} className="p-1 text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      {ruleToDelete && (
+
+      {deleteTarget && (
         <ConfirmDialog
           title="Confirmar exclusão"
-          message={`Deseja remover a regra obrigatória "${getRuleLabel(ruleToDelete)}" desta etapa?`}
-          confirmLabel="Remover regra"
+          message={`Remover todas as regras da etapa "${deleteTarget.stageName}"?`}
+          confirmLabel="Remover todas"
           variant="danger"
-          loading={deletingRule}
-          onCancel={() => setRuleToDelete(null)}
-          onConfirm={async () => {
-            setDeletingRule(true)
-            await removeRule(ruleToDelete.id)
-            setDeletingRule(false)
-            setRuleToDelete(null)
-          }}
+          loading={deletingRules}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
         />
       )}
-      {editingRule && (
-        <Modal title="Editar regra de transição" onClose={closeEditRule} size="md">
-          <div className="flex flex-col gap-3">
+
+      {ruleModalOpen && (
+        <Modal
+          title={ruleModalMode === 'create' ? 'Adicionar regra de transição' : 'Editar regras da etapa'}
+          onClose={closeRuleModal}
+          size="md"
+        >
+          <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-secondary">Tipo</label>
-              <select className={F} value={editRuleType} onChange={(e) => setEditRuleType(e.target.value as 'standard' | 'custom')}>
-                <option value="standard">Campo padrão</option>
-                <option value="custom">Campo personalizado</option>
+              <label className="text-xs text-text-secondary">Etapa</label>
+              <select
+                className={F}
+                value={ruleModalStageId}
+                onChange={(e) => {
+                  const nextStageId = e.target.value
+                  setRuleModalStageId(nextStageId)
+                  if (ruleModalMode === 'edit') {
+                    const rules = getStageRules(nextStageId)
+                    const std = new Set<string>()
+                    const custom = new Set<string>()
+                    for (const rule of rules) {
+                      if (rule.standard_field) std.add(rule.standard_field)
+                      if (rule.custom_field_id) custom.add(rule.custom_field_id)
+                    }
+                    setSelectedStandardKeys(std)
+                    setSelectedCustomIds(custom)
+                  }
+                }}
+                disabled={ruleModalMode === 'edit'}
+              >
+                <option value="">Selecionar etapa...</option>
+                {(ruleModalMode === 'create' ? stagesWithoutRules : stages).map((stage) => (
+                  <option key={stage.id} value={stage.id}>{stage.name}</option>
+                ))}
               </select>
+              {ruleModalMode === 'create' && stagesWithoutRules.length === 0 && (
+                <p className="text-xs text-text-muted">Todas as etapas já possuem regras configuradas.</p>
+              )}
             </div>
-            {editRuleType === 'standard' ? (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-text-secondary">Campo padrão</label>
-                <select className={F} value={editStandardField} onChange={(e) => setEditStandardField(e.target.value)}>
-                  <option value="">Selecionar campo...</option>
-                  {STANDARD_LEAD_FIELDS
-                    .filter((field) => field.key === editStandardField || !usedStandardFields.has(field.key))
-                    .map((field) => (
-                    <option key={field.key} value={field.key}>{field.label}</option>
-                    ))}
-                </select>
+
+            <div className="border-t border-surface-border pt-3">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Campos padrão</p>
+              <div className="flex flex-col gap-2">
+                {STANDARD_LEAD_FIELDS.map((field) => (
+                  <label key={field.key} className="flex items-center gap-2 text-sm text-text-secondary">
+                    <input
+                      type="checkbox"
+                      className="accent-brand"
+                      checked={selectedStandardKeys.has(field.key)}
+                      onChange={() => toggleStandard(field.key)}
+                    />
+                    <span>{field.label}</span>
+                  </label>
+                ))}
               </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-text-secondary">Campo personalizado</label>
-                <select className={F} value={editCustomFieldId} onChange={(e) => setEditCustomFieldId(e.target.value)}>
-                  <option value="">Selecionar campo...</option>
-                  {customFields
-                    .filter((field) => field.id === editCustomFieldId || !usedCustomFieldIds.has(field.id))
-                    .map((field) => (
-                    <option key={field.id} value={field.id}>{field.name}</option>
-                    ))}
-                </select>
+            </div>
+
+            <div className="border-t border-surface-border pt-3">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Campos personalizados</p>
+              {customFields.length === 0 ? (
+                <p className="text-xs text-text-muted">Nenhum campo personalizado criado.</p>
+              ) : (
+                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                  {customFields.map((field) => (
+                    <label key={field.id} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <input
+                        type="checkbox"
+                        className="accent-brand"
+                        checked={selectedCustomIds.has(field.id)}
+                        onChange={() => toggleCustom(field.id)}
+                      />
+                      <span className="truncate">{field.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {ruleModalMode === 'edit' && (
+              <div className="flex justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const stage = stages.find((s) => s.id === ruleModalStageId)
+                    if (!stage) return
+                    setDeleteTarget({ type: 'stage', stageId: stage.id, stageName: stage.name })
+                  }}
+                  className="text-sm text-danger hover:underline"
+                >
+                  Remover todas as regras desta etapa
+                </button>
               </div>
             )}
-            <div className="flex justify-end gap-2 pt-2">
-              <button type="button" onClick={closeEditRule} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
-              <button type="button" onClick={saveEditRule} disabled={savingRuleEdit} className="bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
-                {savingRuleEdit ? 'Salvando...' : 'Salvar regra'}
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
+              <button type="button" onClick={closeRuleModal} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
+              <button
+                type="button"
+                onClick={saveRuleModal}
+                disabled={savingRuleModal || !ruleModalStageId || (selectedStandardKeys.size === 0 && selectedCustomIds.size === 0)}
+                className="bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors"
+              >
+                {savingRuleModal ? 'Salvando...' : ruleModalMode === 'create' ? 'Criar regras' : 'Salvar alterações'}
               </button>
             </div>
           </div>
