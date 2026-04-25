@@ -503,10 +503,6 @@ function StageRulesSection() {
               )}
             </div>
 
-            <p className="text-xs text-text-muted -mt-2">
-              Desmarcar um campo e salvar remove a regra correspondente, sem confirmação extra.
-            </p>
-
             <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
               <button type="button" onClick={closeRuleModal} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
               <button
