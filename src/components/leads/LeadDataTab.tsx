@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useCustomFields }  from '@/hooks/useCustomFields'
 import { useActivityLog }   from '@/hooks/useActivityLog'
 import { useLeads }         from '@/hooks/useLeads'
+import { ConfirmDialog }    from '@/components/ui/ConfirmDialog'
 import { LEAD_SOURCE_OPTIONS } from '@/lib/constants'
 import type { Lead, LeadCustomValue } from '@/lib/types'
 
@@ -34,6 +35,7 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
   const [customValues, setCustomValues] = useState<LeadCustomValue[]>([])
   const [saving, setSaving]             = useState(false)
   const [errors, setErrors]             = useState<{ email?: string; phone?: string }>({})
+  const [showSensitiveConfirm, setShowSensitiveConfirm] = useState(false)
 
   const loadCustomValues = useCallback(async () => {
     setCustomValues(await getValues(lead.id))
@@ -59,17 +61,7 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
     })
   }
 
-  async function handleSave() {
-    const nextErrors: { email?: string; phone?: string } = {}
-    if (form.email.trim() !== '' && !isValidEmail(form.email)) {
-      nextErrors.email = 'Informe um email válido.'
-    }
-    if (form.phone.trim() !== '' && !isValidPhone(form.phone)) {
-      nextErrors.phone = 'Telefone deve ter DDD + número (10 ou 11 dígitos).'
-    }
-    setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
-
+  async function persistSave() {
     setSaving(true)
     const updated = await updateLead(lead.id, {
       name: form.name, email: form.email, phone: form.phone,
@@ -82,6 +74,29 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
     await log({ leadId: lead.id, activityType: 'lead_updated' })
     if (updated) onUpdate(updated)
     setSaving(false)
+  }
+
+  async function handleSave() {
+    const nextErrors: { email?: string; phone?: string } = {}
+    if (form.email.trim() !== '' && !isValidEmail(form.email)) {
+      nextErrors.email = 'Informe um email válido.'
+    }
+    if (form.phone.trim() !== '' && !isValidPhone(form.phone)) {
+      nextErrors.phone = 'Telefone deve ter DDD + número (10 ou 11 dígitos).'
+    }
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    const sensitiveChanged =
+      form.email.trim() !== (lead.email ?? '').trim()
+      || form.phone.trim() !== (lead.phone ?? '').trim()
+
+    if (sensitiveChanged) {
+      setShowSensitiveConfirm(true)
+      return
+    }
+
+    await persistSave()
   }
 
   return (
@@ -161,6 +176,19 @@ export function LeadDataTab({ lead, onUpdate }: { lead: Lead; onUpdate: (u: Lead
           {saving ? 'Salvando...' : 'Salvar alterações'}
         </button>
       </div>
+      {showSensitiveConfirm && (
+        <ConfirmDialog
+          title="Confirmar edição de dados sensíveis"
+          message="Você alterou email ou telefone do lead. Deseja confirmar essa atualização?"
+          confirmLabel="Confirmar edição"
+          loading={saving}
+          onCancel={() => setShowSensitiveConfirm(false)}
+          onConfirm={async () => {
+            setShowSensitiveConfirm(false)
+            await persistSave()
+          }}
+        />
+      )}
     </div>
   )
 }

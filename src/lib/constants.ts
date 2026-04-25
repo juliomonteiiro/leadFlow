@@ -1,4 +1,5 @@
 export const STANDARD_LEAD_FIELDS = [
+  { key: 'name',      label: 'Nome' },
   { key: 'email',     label: 'Email' },
   { key: 'phone',     label: 'Telefone' },
   { key: 'company',   label: 'Empresa' },

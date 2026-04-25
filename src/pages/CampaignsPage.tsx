@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Zap } from 'lucide-react'
 import { useCampaigns }  from '@/hooks/useCampaigns'
 import { useStages }     from '@/hooks/useStages'
 import { CampaignForm }  from '@/components/campaigns/CampaignForm'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Modal }         from '@/components/ui/Modal'
 import { Skeleton }      from '@/components/ui/Skeleton'
 import type { Campaign } from '@/lib/types'
@@ -12,6 +13,8 @@ function CampaignsList() {
   const { stages }                                     = useStages()
   const [showForm, setShowForm]   = useState(false)
   const [editing, setEditing]     = useState<Campaign | null>(null)
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null)
+  const [deletingCampaign, setDeletingCampaign] = useState(false)
 
   function getStageName(id: string | null) {
     if (!id) return 'Nenhuma'
@@ -54,7 +57,7 @@ function CampaignsList() {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => setEditing(campaign)} className="p-2 text-text-muted hover:text-text-primary hover:bg-surface-hover rounded-btn transition-colors"><Pencil size={14} /></button>
-                <button onClick={() => remove(campaign.id)} className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-btn transition-colors"><Trash2 size={14} /></button>
+                <button onClick={() => setCampaignToDelete(campaign)} className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-btn transition-colors"><Trash2 size={14} /></button>
               </div>
             </div>
           </div>
@@ -70,6 +73,22 @@ function CampaignsList() {
         <Modal title="Editar campanha" onClose={() => setEditing(null)} size="lg">
           <CampaignForm initial={editing} onSubmit={async (data) => { await update(editing.id, data); setEditing(null) }} onCancel={() => setEditing(null)} />
         </Modal>
+      )}
+      {campaignToDelete && (
+        <ConfirmDialog
+          title="Confirmar exclusão"
+          message={`Tem certeza que deseja excluir a campanha "${campaignToDelete.name}"? Mensagens vinculadas a ela também podem ser impactadas.`}
+          confirmLabel="Excluir campanha"
+          variant="danger"
+          loading={deletingCampaign}
+          onCancel={() => setCampaignToDelete(null)}
+          onConfirm={async () => {
+            setDeletingCampaign(true)
+            await remove(campaignToDelete.id)
+            setDeletingCampaign(false)
+            setCampaignToDelete(null)
+          }}
+        />
       )}
     </>
   )
