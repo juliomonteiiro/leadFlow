@@ -15,7 +15,7 @@ export function KanbanColumn({ stage, leads, loading, onLeadClick }: {
         <span className="text-text-primary text-sm font-medium truncate">{stage.name}</span>
         <span className="ml-auto text-text-muted text-xs bg-surface-hover px-1.5 py-0.5 rounded-full">{leads.length}</span>
       </div>
-      <div ref={setNodeRef} className={`flex-1 min-h-[440px] flex flex-col gap-2 p-2.5 rounded-card border transition-colors ${isOver ? 'bg-brand/10 border-brand/30 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]' : 'bg-surface-base border-surface-border'}`}>
+      <div ref={setNodeRef} className={`flex-1 min-h-[440px] flex flex-col gap-2 p-2.5 rounded-card border transition-colors overflow-y-auto ${isOver ? 'bg-brand/10 border-brand/30 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]' : 'bg-surface-base border-surface-border'}`}>
         {loading ? (
           <><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></>
         ) : (

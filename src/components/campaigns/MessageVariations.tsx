@@ -26,12 +26,21 @@ export function MessageVariations({ lead, campaignId, campaignName }: { lead: Le
   useEffect(() => { loadLatest() }, [loadLatest])
 
   async function handleGenerate() {
-    const result = await generate(lead.id, campaignId)
-    if (result) {
-      setMessage(result)
-      await log({ leadId: lead.id, activityType: 'message_generated', metadata: { campaign_id: campaignId, campaign_name: campaignName } })
-    } else {
-      showToast('Erro ao gerar mensagens. Tente novamente.', 'error')
+    try {
+      const result = await generate(lead.id, campaignId)
+      if (result) {
+        setMessage(result)
+        await log({ leadId: lead.id, activityType: 'message_generated', metadata: { campaign_id: campaignId, campaign_name: campaignName } })
+      } else {
+        showToast('Não foi possível gerar mensagens para este lead/campanha.', 'error')
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erro inesperado'
+      if (message.includes('401')) {
+        showToast('Sessão expirada. Faça login novamente para gerar mensagens.', 'error')
+        return
+      }
+      showToast(`Erro ao gerar mensagens: ${message}`, 'error')
     }
   }
 
