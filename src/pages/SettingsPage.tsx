@@ -20,6 +20,7 @@ function CustomFieldsSection() {
   const [newType, setNewType]         = useState<FieldType>('text')
   const [newOptions, setNewOptions]   = useState('')
   const [saving, setSaving]           = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [fieldToDelete, setFieldToDelete] = useState<CustomFieldDefinition | null>(null)
   const [deletingField, setDeletingField] = useState(false)
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
@@ -38,7 +39,11 @@ function CustomFieldsSection() {
       .insert({ workspace_id: workspace.id, name: newName.trim(), field_type: newType, options, position: localFields.length })
       .select().single()
     if (data) setLocalFields((prev) => [...prev, data as CustomFieldDefinition])
-    setNewName(''); setNewOptions(''); setSaving(false)
+    setNewName('')
+    setNewType('text')
+    setNewOptions('')
+    setSaving(false)
+    setShowAddModal(false)
   }
 
   async function handleRemove(id: string) {
@@ -84,6 +89,15 @@ function CustomFieldsSection() {
     <div className="bg-surface-card border border-surface-border rounded-card p-5">
       <h2 className="text-text-primary font-medium mb-1">Campos personalizados</h2>
       <p className="text-text-muted text-xs mb-4">Campos extras disponíveis para todos os leads do workspace.</p>
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 bg-brand hover:bg-brand-hover text-white px-3 py-2 rounded-btn text-sm font-medium transition-colors"
+        >
+          <Plus size={14} />
+          Adicionar campo
+        </button>
+      </div>
       <div className="flex flex-col gap-2 mb-4">
         {localFields.length === 0 && <p className="text-text-muted text-sm text-center py-4">Nenhum campo criado.</p>}
         {localFields.map((field) => (
@@ -100,24 +114,6 @@ function CustomFieldsSection() {
             </div>
           </div>
         ))}
-      </div>
-      <div className="flex flex-col gap-2 border-t border-surface-border pt-4">
-        <div className="grid grid-cols-2 gap-2">
-          <input className={F} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do campo" />
-          <select className={F} value={newType} onChange={(e) => setNewType(e.target.value as FieldType)}>
-            <option value="text">Texto</option>
-            <option value="number">Número</option>
-            <option value="date">Data</option>
-            <option value="select">Seleção</option>
-          </select>
-        </div>
-        {newType === 'select' && (
-          <input className={F} value={newOptions} onChange={(e) => setNewOptions(e.target.value)} placeholder="Opções separadas por vírgula" />
-        )}
-        <button onClick={handleAdd} disabled={saving || !newName.trim()}
-          className="flex items-center justify-center gap-2 bg-brand hover:bg-brand-hover disabled:opacity-50 text-white py-2 rounded-btn text-sm font-medium transition-colors">
-          <Plus size={14} />{saving ? 'Adicionando...' : 'Adicionar campo'}
-        </button>
       </div>
       {fieldToDelete && (
         <ConfirmDialog
@@ -154,6 +150,30 @@ function CustomFieldsSection() {
               <button type="button" onClick={cancelEdit} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
               <button type="button" onClick={() => saveEdit(editingFieldId)} disabled={savingEdit || !editName.trim()} className="bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
                 {savingEdit ? 'Salvando...' : 'Salvar campo'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {showAddModal && (
+        <Modal title="Adicionar campo personalizado" onClose={() => setShowAddModal(false)} size="md">
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <input className={F} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nome do campo" />
+              <select className={F} value={newType} onChange={(e) => setNewType(e.target.value as FieldType)}>
+                <option value="text">Texto</option>
+                <option value="number">Número</option>
+                <option value="date">Data</option>
+                <option value="select">Seleção</option>
+              </select>
+            </div>
+            {newType === 'select' && (
+              <input className={F} value={newOptions} onChange={(e) => setNewOptions(e.target.value)} placeholder="Opções separadas por vírgula" />
+            )}
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
+              <button type="button" onClick={handleAdd} disabled={saving || !newName.trim()} className="bg-brand hover:bg-brand-hover disabled:opacity-50 text-white px-4 py-2 rounded-btn text-sm font-medium transition-colors">
+                {saving ? 'Adicionando...' : 'Adicionar campo'}
               </button>
             </div>
           </div>
@@ -332,11 +352,15 @@ function StageRulesSection() {
           return (
             <div key={stage.id} className="mb-2 rounded-card border border-surface-border p-3 bg-surface-base">
               <p className="text-sm text-text-primary font-medium mb-1">{stage.name}</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2">
                 {stageRules.map((rule) => (
-                  <span key={rule.id} className="text-xs text-text-secondary bg-surface-hover border border-surface-border px-2 py-1 rounded-full">
-                    {getRuleLabel(rule)}
-                  </span>
+                  <div key={rule.id} className="flex items-center justify-between bg-surface-hover border border-surface-border px-2 py-1 rounded-full">
+                    <span className="text-xs text-text-secondary">{getRuleLabel(rule)}</span>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setStageId(stage.id); openEditRule(rule) }} className="p-1 text-text-muted hover:text-text-primary transition-colors"><Pencil size={12} /></button>
+                      <button onClick={() => setRuleToDelete(rule)} className="p-1 text-text-muted hover:text-danger transition-colors"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
