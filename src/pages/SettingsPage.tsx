@@ -333,10 +333,14 @@ function StageRulesSection() {
     }
     setDeletingRules(false)
     setDeleteTarget(null)
-    if (ruleModalOpen && ruleModalMode === 'edit' && deleteTarget.type === 'stage' && ruleModalStageId === deleteTarget.stageId) {
+    if (ruleModalOpen && ruleModalMode === 'edit' && ruleModalStageId === deleteTarget.stageId) {
       closeRuleModal()
     }
   }
+
+  const chipBase = 'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors'
+  const chipOff = 'border-surface-border text-text-secondary bg-surface-base hover:bg-surface-hover'
+  const chipOn = 'border-brand/40 text-text-primary bg-brand/15'
 
   if (stagesLoading) return <Skeleton className="h-40 w-full" />
 
@@ -418,9 +422,9 @@ function StageRulesSection() {
 
       {deleteTarget && (
         <ConfirmDialog
-          title="Confirmar exclusão"
-          message={`Remover todas as regras da etapa "${deleteTarget.stageName}"?`}
-          confirmLabel="Remover todas"
+          title={`Remover regra de transição ${deleteTarget.stageName}`}
+          message={`Isso vai remover todas as regras configuradas para a etapa "${deleteTarget.stageName}".`}
+          confirmLabel="Remover regras"
           variant="danger"
           loading={deletingRules}
           onCancel={() => setDeleteTarget(null)}
@@ -430,56 +434,51 @@ function StageRulesSection() {
 
       {ruleModalOpen && (
         <Modal
-          title={ruleModalMode === 'create' ? 'Adicionar regra de transição' : 'Editar regras da etapa'}
+          title={ruleModalMode === 'create' ? 'Adicionar regra de transição' : `Editar regras da etapa · ${stages.find((s) => s.id === ruleModalStageId)?.name ?? ''}`}
           onClose={closeRuleModal}
           size="md"
         >
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-secondary">Etapa</label>
-              <select
-                className={F}
-                value={ruleModalStageId}
-                onChange={(e) => {
-                  const nextStageId = e.target.value
-                  setRuleModalStageId(nextStageId)
-                  if (ruleModalMode === 'edit') {
-                    const rules = getStageRules(nextStageId)
-                    const std = new Set<string>()
-                    const custom = new Set<string>()
-                    for (const rule of rules) {
-                      if (rule.standard_field) std.add(rule.standard_field)
-                      if (rule.custom_field_id) custom.add(rule.custom_field_id)
-                    }
-                    setSelectedStandardKeys(std)
-                    setSelectedCustomIds(custom)
-                  }
-                }}
-                disabled={ruleModalMode === 'edit'}
-              >
-                <option value="">Selecionar etapa...</option>
-                {(ruleModalMode === 'create' ? stagesWithoutRules : stages).map((stage) => (
-                  <option key={stage.id} value={stage.id}>{stage.name}</option>
-                ))}
-              </select>
-              {ruleModalMode === 'create' && stagesWithoutRules.length === 0 && (
-                <p className="text-xs text-text-muted">Todas as etapas já possuem regras configuradas.</p>
-              )}
-            </div>
+            {ruleModalMode === 'create' ? (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-text-secondary">Etapa</label>
+                <select
+                  className={F}
+                  value={ruleModalStageId}
+                  onChange={(e) => {
+                    setRuleModalStageId(e.target.value)
+                    setSelectedStandardKeys(new Set())
+                    setSelectedCustomIds(new Set())
+                  }}
+                >
+                  <option value="">Selecionar etapa...</option>
+                  {stagesWithoutRules.map((stage) => (
+                    <option key={stage.id} value={stage.id}>{stage.name}</option>
+                  ))}
+                </select>
+                {stagesWithoutRules.length === 0 && (
+                  <p className="text-xs text-text-muted">Todas as etapas já possuem regras configuradas.</p>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-card border border-surface-border bg-surface-base px-3 py-2">
+                <p className="text-xs text-text-muted">Etapa</p>
+                <p className="text-sm text-text-primary font-medium">{stages.find((s) => s.id === ruleModalStageId)?.name ?? ''}</p>
+              </div>
+            )}
 
             <div className="border-t border-surface-border pt-3">
               <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Campos padrão</p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
                 {STANDARD_LEAD_FIELDS.map((field) => (
-                  <label key={field.key} className="flex items-center gap-2 text-sm text-text-secondary">
-                    <input
-                      type="checkbox"
-                      className="accent-brand"
-                      checked={selectedStandardKeys.has(field.key)}
-                      onChange={() => toggleStandard(field.key)}
-                    />
-                    <span>{field.label}</span>
-                  </label>
+                  <button
+                    key={field.key}
+                    type="button"
+                    onClick={() => toggleStandard(field.key)}
+                    className={`${chipBase} ${selectedStandardKeys.has(field.key) ? chipOn : chipOff}`}
+                  >
+                    {field.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -489,37 +488,24 @@ function StageRulesSection() {
               {customFields.length === 0 ? (
                 <p className="text-xs text-text-muted">Nenhum campo personalizado criado.</p>
               ) : (
-                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
                   {customFields.map((field) => (
-                    <label key={field.id} className="flex items-center gap-2 text-sm text-text-secondary">
-                      <input
-                        type="checkbox"
-                        className="accent-brand"
-                        checked={selectedCustomIds.has(field.id)}
-                        onChange={() => toggleCustom(field.id)}
-                      />
-                      <span className="truncate">{field.name}</span>
-                    </label>
+                    <button
+                      key={field.id}
+                      type="button"
+                      onClick={() => toggleCustom(field.id)}
+                      className={`${chipBase} ${selectedCustomIds.has(field.id) ? chipOn : chipOff}`}
+                    >
+                      {field.name}
+                    </button>
                   ))}
                 </div>
               )}
             </div>
 
-            {ruleModalMode === 'edit' && (
-              <div className="flex justify-between gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const stage = stages.find((s) => s.id === ruleModalStageId)
-                    if (!stage) return
-                    setDeleteTarget({ type: 'stage', stageId: stage.id, stageName: stage.name })
-                  }}
-                  className="text-sm text-danger hover:underline"
-                >
-                  Remover todas as regras desta etapa
-                </button>
-              </div>
-            )}
+            <p className="text-xs text-text-muted -mt-2">
+              Desmarcar um campo e salvar remove a regra correspondente, sem confirmação extra.
+            </p>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-surface-border">
               <button type="button" onClick={closeRuleModal} className="px-4 py-2 rounded-btn text-sm text-text-secondary hover:bg-surface-hover transition-colors">Cancelar</button>
