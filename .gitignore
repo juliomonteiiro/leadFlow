@@ -22,3 +22,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Scripts locais / testes manuais (não versionar credenciais)
+tmp-*.mjs
+scratch-*.mjs
+.git_commit_msg_tmp

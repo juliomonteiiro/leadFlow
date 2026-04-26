@@ -10,7 +10,7 @@ import { useToast }           from '@/hooks/useToast'
 import type { Lead }          from '@/lib/types'
 
 export default function KanbanPage() {
-  const { createLead }  = useLeads()
+  const { leads, loading: leadsLoading, createLead, updateStage } = useLeads()
   const { log }         = useActivityLog()
   const { showToast }   = useToast()
   const [showCreate, setShowCreate]     = useState(false)
@@ -30,7 +30,13 @@ export default function KanbanPage() {
   return (
     <div className="h-full min-h-0 flex flex-col">
       <Suspense fallback={<Skeleton className="h-64 w-full" />}>
-        <KanbanBoard onLeadClick={(lead) => setSelectedLead(lead)} onCreateClick={() => setShowCreate(true)} />
+        <KanbanBoard
+          leads={leads}
+          leadsLoading={leadsLoading}
+          updateStage={updateStage}
+          onLeadClick={(lead) => setSelectedLead(lead)}
+          onCreateClick={() => setShowCreate(true)}
+        />
       </Suspense>
       {showCreate && (
         <Modal title="Novo Lead" onClose={() => setShowCreate(false)}>

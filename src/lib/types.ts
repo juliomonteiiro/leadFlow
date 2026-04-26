@@ -45,6 +45,7 @@ export interface Lead {
   id:           string
   workspace_id: string
   stage_id:     string
+  sort_order:   number
   assigned_to:  string | null
   name:         string
   email:        string

@@ -1,13 +1,13 @@
-import { useDroppable }  from '@dnd-kit/core'
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { LeadCard }      from '@/components/kanban/LeadCard'
-import { Skeleton }      from '@/components/ui/Skeleton'
+import { useDroppable } from '@dnd-kit/core'
+import { LeadCard }     from '@/components/kanban/LeadCard'
+import { Skeleton }     from '@/components/ui/Skeleton'
 import type { FunnelStage, Lead } from '@/lib/types'
 
 export function KanbanColumn({ stage, leads, loading, onLeadClick }: {
   stage: FunnelStage; leads: Lead[]; loading: boolean; onLeadClick: (lead: Lead) => void
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: stage.id })
+  const columnDropId = `column-drop-${stage.id}`
+  const { setNodeRef, isOver } = useDroppable({ id: columnDropId, data: { type: 'kanban-column', stageId: stage.id } })
   return (
     <div className="flex flex-col w-80 shrink-0 h-full min-h-0">
       <div className="flex items-center gap-2.5 mb-3 px-2">
@@ -19,9 +19,7 @@ export function KanbanColumn({ stage, leads, loading, onLeadClick }: {
         {loading ? (
           <><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></>
         ) : (
-          <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-            {leads.map((lead) => <LeadCard key={lead.id} lead={lead} onClick={onLeadClick} />)}
-          </SortableContext>
+          leads.map((lead) => <LeadCard key={lead.id} lead={lead} onClick={onLeadClick} />)
         )}
         {!loading && leads.length === 0 && <p className="text-text-muted text-xs text-center py-6">Nenhum lead</p>}
       </div>

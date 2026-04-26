@@ -1,14 +1,19 @@
-import { useSortable }     from '@dnd-kit/sortable'
-import { CSS }             from '@dnd-kit/utilities'
+import { useDraggable }  from '@dnd-kit/core'
 import { Building2, User } from 'lucide-react'
-import type { Lead }       from '@/lib/types'
+import type { Lead }     from '@/lib/types'
 
 export function LeadCard({ lead, onClick }: { lead: Lead; onClick: (lead: Lead) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: lead.id })
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: lead.id })
   return (
-    <div data-kanban-card ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      {...attributes} {...listeners} onClick={() => onClick(lead)}
-      className="bg-surface-card border border-surface-border rounded-card p-3.5 cursor-grab active:cursor-grabbing hover:border-brand hover:bg-surface-hover/40 transition-colors">
+    <div
+      data-kanban-card
+      ref={setNodeRef}
+      style={{ opacity: isDragging ? 0.35 : 1 }}
+      {...attributes}
+      {...listeners}
+      onClick={() => onClick(lead)}
+      className="bg-surface-card border border-surface-border rounded-card p-3.5 cursor-grab active:cursor-grabbing hover:border-brand hover:bg-surface-hover/40 transition-colors"
+    >
       <p className="text-text-primary text-sm font-medium truncate">{lead.name}</p>
       {lead.company && (
         <div className="flex items-center gap-1 mt-1.5">

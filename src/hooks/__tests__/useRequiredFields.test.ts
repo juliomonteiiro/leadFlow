@@ -17,6 +17,7 @@ const baseLead: Lead = {
   id: 'lead-1',
   workspace_id: 'ws-1',
   stage_id: 'stage-1',
+  sort_order: Date.now(),
   assigned_to: null,
   name: 'Ana',
   email: 'ana@acme.com',
@@ -38,8 +39,8 @@ describe('useRequiredFields', () => {
       ],
     })
 
-    const customSingle = vi.fn().mockResolvedValue({ data: { value: '' } })
-    const customEqField = vi.fn().mockReturnValue({ single: customSingle })
+    const customMaybeSingle = vi.fn().mockResolvedValue({ data: { value: '' } })
+    const customEqField = vi.fn().mockReturnValue({ maybeSingle: customMaybeSingle })
     const customEqLead = vi.fn().mockReturnValue({ eq: customEqField })
     const customSelect = vi.fn().mockReturnValue({ eq: customEqLead })
 

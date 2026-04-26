@@ -18,10 +18,11 @@ vi.mock('@/hooks/useWorkspace', () => ({
 }))
 
 function makeFetchChain(data: unknown[] = []) {
-  const order = vi.fn().mockResolvedValue({ data })
-  const eq = vi.fn().mockReturnValue({ order })
+  const order2 = vi.fn().mockResolvedValue({ data })
+  const order1 = vi.fn().mockReturnValue({ order: order2 })
+  const eq = vi.fn().mockReturnValue({ order: order1 })
   const select = vi.fn().mockReturnValue({ eq })
-  return { select, eq, order }
+  return { select, eq, order1, order2 }
 }
 
 describe('useLeads', () => {
@@ -74,18 +75,21 @@ describe('useLeads', () => {
     })
 
     expect(created?.name).toBe('Maria')
-    expect(insert).toHaveBeenCalledWith({
-      workspace_id: 'ws-1',
-      stage_id: 'stage-1',
-      assigned_to: null,
-      name: 'Maria',
-      email: 'maria@acme.com',
-      phone: '11999999999',
-      company: 'ACME',
-      job_title: 'SDR',
-      source: 'LinkedIn',
-      notes: 'novo lead',
-    })
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: 'ws-1',
+        stage_id: 'stage-1',
+        assigned_to: null,
+        name: 'Maria',
+        email: 'maria@acme.com',
+        phone: '11999999999',
+        company: 'ACME',
+        job_title: 'SDR',
+        source: 'LinkedIn',
+        notes: 'novo lead',
+      }),
+    )
+    expect(insert.mock.calls[0][0]).toMatchObject({ sort_order: expect.any(Number) })
   })
 
   it('returns null when supabase insert fails', async () => {

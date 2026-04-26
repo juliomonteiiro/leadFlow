@@ -3,11 +3,37 @@ import { supabase }                          from '@/lib/supabase'
 import { useWorkspace }                      from '@/hooks/useWorkspace'
 import type { Lead }                         from '@/lib/types'
 
-type CreateLeadData = Omit<Lead, 'id' | 'created_at' | 'updated_at' | 'workspace_id'>
+type CreateLeadData = {
+  stage_id: string
+  assigned_to: string | null
+  name: string
+  email: string
+  phone: string
+  company: string
+  job_title: string
+  source: string
+  notes: string
+}
 const LEADS_UPDATED_EVENT = 'leadflow:leads-updated'
 
 function emitLeadsUpdated(): void {
   window.dispatchEvent(new Event(LEADS_UPDATED_EVENT))
+}
+
+function sortLeadsList(list: Lead[]): Lead[] {
+  return [...list].sort((a, b) => {
+    const ao = a.sort_order
+    const bo = b.sort_order
+    const aNull = ao == null
+    const bNull = bo == null
+    if (aNull && bNull) {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    }
+    if (aNull) return 1
+    if (bNull) return -1
+    if (ao !== bo) return ao - bo
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
 }
 
 export function useLeads() {
@@ -21,8 +47,9 @@ export function useLeads() {
     setLoading(true)
     supabase.from('leads').select('*')
       .eq('workspace_id', workspace.id)
+      .order('sort_order', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
-      .then(({ data }) => { setLeads(data ?? []); setLoading(false) })
+      .then(({ data }) => { setLeads(sortLeadsList(data ?? [])); setLoading(false) })
   }, [workspace, tick])
 
   useEffect(() => {
@@ -34,15 +61,30 @@ export function useLeads() {
     return () => window.removeEventListener(LEADS_UPDATED_EVENT, handleLeadsUpdated)
   }, [])
 
-  const updateStage = useCallback(async (leadId: string, stageId: string): Promise<void> => {
-    await supabase.from('leads').update({ stage_id: stageId }).eq('id', leadId)
-    setLeads((prev) => prev.map((l) => (l.id === leadId ? { ...l, stage_id: stageId } : l)))
+  const updateStage = useCallback(async (leadId: string, stageId: string, sortOrder?: number): Promise<boolean> => {
+    const payload: { stage_id: string; sort_order?: number } = { stage_id: stageId }
+    if (typeof sortOrder === 'number') payload.sort_order = sortOrder
+    const { error } = await supabase.from('leads').update(payload).eq('id', leadId)
+    if (error) {
+      console.error('Erro ao atualizar etapa do lead', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        leadId,
+        stageId,
+        sortOrder,
+      })
+      return false
+    }
+    setLeads((prev) => sortLeadsList(prev.map((l) => (l.id === leadId ? { ...l, ...payload } : l))))
     emitLeadsUpdated()
+    return true
   }, [])
 
   const updateLead = useCallback(async (leadId: string, data: Partial<Lead>): Promise<Lead | null> => {
     const { data: updated } = await supabase.from('leads').update(data).eq('id', leadId).select().single()
-    if (updated) setLeads((prev) => prev.map((l) => (l.id === leadId ? updated : l)))
+    if (updated) setLeads((prev) => sortLeadsList(prev.map((l) => (l.id === leadId ? updated : l))))
     emitLeadsUpdated()
     return updated
   }, [])
@@ -52,6 +94,7 @@ export function useLeads() {
     const payload = {
       workspace_id: workspace.id,
       stage_id: data.stage_id,
+      sort_order: Date.now(),
       assigned_to: data.assigned_to ?? null,
       name: data.name.trim(),
       email: data.email.trim(),
@@ -72,7 +115,7 @@ export function useLeads() {
       return null
     }
     if (created) {
-      setLeads((prev) => [created, ...prev])
+      setLeads((prev) => sortLeadsList([created, ...prev]))
       emitLeadsUpdated()
     }
     return created
