@@ -27,3 +27,4 @@ dist-ssr
 tmp-*.mjs
 scratch-*.mjs
 .git_commit_msg_tmp
+.git_rewrite_author*.sh
