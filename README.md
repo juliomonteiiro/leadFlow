@@ -5,7 +5,7 @@ Mini CRM para times de SDR com funil Kanban, campanhas, geração de mensagens c
 ## Links da entrega
 
 - **Aplicação publicada:** `https://leads.juliomonteiro.dev/`
-- **Vídeo (até 10 min):** `ADICIONAR_LINK_VIDEO`
+- **Vídeo (até 10 min):** `https://drive.google.com/file/d/19cMi072xoQGIKubYhbwIidyJrFNAFG7Y/view?usp=sharing`
 - **Repositório:** `https://github.com/juliomonteiiro/leadFlow`
 
 ## Tecnologias utilizadas
